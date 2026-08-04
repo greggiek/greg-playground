@@ -16,6 +16,7 @@
       <div class="header-actions">
         <span id="profileBadge" class="profile-badge" hidden></span>
         <button id="switchUserBtn" class="btn btn-secondary" type="button" hidden>Switch User</button>
+        <button id="bulkEmailBtn" class="btn btn-secondary" type="button" hidden>Bulk Email</button>
         <button id="importProspectsBtn" class="btn btn-secondary" hidden>Import</button>
         <button id="newProspectBtn" class="btn btn-primary">+ New Prospect</button>
       </div>
@@ -95,6 +96,43 @@
             <button id="saveQuoteBtn" class="btn btn-primary">Save Draft in CRM</button>
             <button id="emailQuoteBtn" class="btn btn-secondary">Email Quote</button>
             <button id="cancelQuoteBtn" class="btn btn-secondary">Cancel</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="bulkEmailView" class="view">
+        <button class="back-link" data-back>← Back</button>
+        <div class="page-card">
+          <div class="section-heading">
+            <div><p class="eyebrow">MANAGER TOOLS</p><h2>Bulk Email</h2></div>
+          </div>
+          <div class="bulk-email-layout">
+            <div>
+              <h3>Audience</h3>
+              <div class="form-grid bulk-email-filters">
+                <label>Pipeline Stage<select id="bulkEmailStage"><option value="">All stages</option><option>New Lead</option><option>Contacted</option><option>Quoting</option><option>Follow-Up</option><option>Won</option><option>Lost</option></select></label>
+                <label>Account Owner<select id="bulkEmailOwner"><option value="">All owners</option><option>Greg</option><option>Craig</option><option>Rep 1</option></select></label>
+              </div>
+              <div id="bulkRecipientSummary" class="recipient-summary">0 recipients</div>
+              <div id="bulkRecipientPreview" class="recipient-preview"></div>
+
+              <div class="section-heading"><h3>Email Template</h3></div>
+              <input id="emailTemplateName" placeholder="Template name, e.g. Door Promotion" maxlength="120" />
+              <label class="field-label template-field" for="emailTemplateSubject">Subject</label>
+              <input id="emailTemplateSubject" placeholder="Email subject" maxlength="300" />
+              <label class="field-label template-field" for="emailTemplateBody">Message</label>
+              <textarea id="emailTemplateBody" rows="12" maxlength="20000" placeholder="Write the email message…"></textarea>
+              <p class="status-text">Recipients are added using BCC so customers cannot see one another. Gmail opens as a draft and never sends automatically.</p>
+              <div class="button-row">
+                <button id="saveEmailTemplateBtn" class="btn btn-primary" type="button">Save Template</button>
+                <button id="prepareBulkEmailBtn" class="btn btn-secondary" type="button">Prepare Gmail Draft</button>
+                <button id="clearEmailTemplateBtn" class="btn btn-secondary" type="button">Clear</button>
+              </div>
+            </div>
+            <aside>
+              <h3>Saved Templates</h3>
+              <div id="savedEmailTemplates" class="card-list saved-templates"><div class="empty">No templates yet.</div></div>
+            </aside>
           </div>
         </div>
       </section>
