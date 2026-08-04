@@ -1,4 +1,4 @@
-# Bargain Prospect CRM — MVP Prototype
+# Bargain Prospect CRM
 
 A lightweight, mobile-first prospecting CRM built around one simple lifecycle:
 
@@ -19,9 +19,10 @@ A lightweight, mobile-first prospecting CRM built around one simple lifecycle:
 - Pipeline stages, owners, estimated opportunity value, and dashboard totals
 - Filter prospects by stage and export the CRM as CSV
 - Edit prospect contact and pipeline details
-- Build a quote from Shopify-style product line items
+- Search live Shopify product variants by title, SKU, or option
 - Enter quantity and calculate line totals / quote total
-- Save quotes to the prospect timeline
+- Push quotes into Shopify as Draft Orders
+- Save Shopify Draft Order references and invoice links to the prospect timeline
 - Demo “Convert to Customer” action
 - Browser localStorage persistence
 
@@ -44,27 +45,23 @@ Then visit:
 http://localhost:8080
 ```
 
-## Shopify integration points
+## Shopify connection
 
-The prototype currently uses `mockShopifyProducts` in `app.js`.
+The Vercel API routes use Shopify Admin GraphQL API `2026-07` and the client-credentials grant. Configure these environment variables in Vercel:
 
-For production:
+```text
+SHOPIFY_STORE_DOMAIN=eh1h8t-4b.myshopify.com
+SHOPIFY_CLIENT_ID=from Shopify Dev Dashboard
+SHOPIFY_CLIENT_SECRET=from Shopify Dev Dashboard
+```
 
-1. Create a secure backend endpoint that queries Shopify Admin GraphQL.
-2. Replace `mockShopifyProducts` with a call such as:
-   - `GET /api/products?search=shaker`
-3. Return only the fields needed by the CRM:
-   - Variant ID
-   - Product title
-   - Variant title
-   - SKU
-   - Price
-4. When a prospect makes the first purchase:
-   - Create or match the Shopify customer
-   - Save the returned Shopify customer ID
-   - Create a draft order or order from the accepted quote
+Endpoints:
 
-Never expose the Shopify Admin API token in browser JavaScript.
+- `GET /api/products?search=shaker` searches active Shopify variants.
+- `POST /api/draft-orders` creates a Shopify Draft Order.
+- `GET /api/health` confirms deployment and environment configuration.
+
+Never expose Shopify credentials in browser JavaScript or commit them to GitHub.
 
 ## Recommended next production step
 
