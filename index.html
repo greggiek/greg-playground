@@ -13,7 +13,10 @@
         <p class="eyebrow">BARGAIN MOULDING</p>
         <h1>Prospect CRM</h1>
       </div>
-      <button id="newProspectBtn" class="btn btn-primary">+ New Prospect</button>
+      <div class="header-actions">
+        <button id="importProspectsBtn" class="btn btn-secondary">Import</button>
+        <button id="newProspectBtn" class="btn btn-primary">+ New Prospect</button>
+      </div>
     </header>
 
     <main>
@@ -188,6 +191,27 @@
       <div class="button-row">
         <button class="btn btn-primary" type="submit">Save Note</button>
         <button class="btn btn-secondary" type="button" data-close-note>Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="importDialog">
+    <form id="importForm" method="dialog">
+      <div class="dialog-header">
+        <div><p class="eyebrow">BULK IMPORT</p><h2>Import Prospects or Customers</h2></div>
+        <button type="button" class="icon-btn" data-close-import aria-label="Close">×</button>
+      </div>
+      <p class="status-text">Upload a CSV or XLSX file with a header row. Common fields such as company, contact, email, phone, address, city, state, ZIP, stage, owner, and estimated value are mapped automatically.</p>
+      <label>File<input name="file" type="file" accept=".csv,.xlsx" required /></label>
+      <div class="form-grid">
+        <label>Import As<select name="recordType"><option value="prospect">Prospects</option><option value="customer">Customers</option></select></label>
+        <label>Default Owner<select name="owner"><option>Greg</option><option>Joe</option><option>Jennie</option><option>Rach</option></select></label>
+      </div>
+      <p class="status-text">Duplicates are skipped by matching email or company + phone. Maximum 1,000 rows and 3 MB per file.</p>
+      <div id="importStatus" class="import-status" aria-live="polite"></div>
+      <div class="button-row">
+        <button id="runImportBtn" class="btn btn-primary" type="submit">Import Records</button>
+        <button class="btn btn-secondary" type="button" data-close-import>Cancel</button>
       </div>
     </form>
   </dialog>
