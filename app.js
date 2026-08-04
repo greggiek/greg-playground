@@ -25,6 +25,34 @@ async function crmFetch(url, options = {}, retry = true) {
   return response;
 }
 
+function fromDbProspect(p) {
+  return {
+    id: p.id, companyName: p.company_name, contactName: p.contact_name, email: p.email,
+    phone: p.phone, address: p.address, stage: p.stage, estimatedValue: Number(p.estimated_value),
+    owner: p.owner_name, customerId: p.shopify_customer_id, createdAt: p.created_at,
+    timeline: (p.crm_activities || []).map((a) => ({ id: a.id, at: a.created_at, user: a.user_name, text: a.body })),
+    reminders: (p.crm_reminders || []).map((r) => ({ id: r.id, date: r.due_date, note: r.note, completed: r.completed })),
+    quotes: (p.crm_quotes || []).map((q) => ({ id: q.id, number: q.quote_number, createdAt: q.created_at, status: q.status, total: Number(q.total), shopifyDraftOrderId: q.shopify_draft_order_id, shopifyDraftOrderName: q.shopify_draft_order_name, invoiceUrl: q.shopify_invoice_url, lines: (q.crm_quote_lines || []).map((l) => ({ id: l.id, productId: l.shopify_variant_id, title: l.product_title, variant: l.variant_title, sku: l.sku, unitPrice: Number(l.unit_price), qty: l.quantity })) })),
+  };
+}
+
+async function refreshCrm(openId) {
+  const response = await crmFetch("/api/crm");
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.error || "Could not load CRM.");
+  state = { prospects: (body.prospects || []).map(fromDbProspect) };
+  saveState();
+  renderHome();
+  if (openId) openProspect(openId);
+}
+
+async function crmAction(action, data) {
+  const response = await crmFetch("/api/crm", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, data }) });
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.error || "CRM update failed.");
+  return body;
+}
+
 function loadState() {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
@@ -214,6 +242,11 @@ function renderProspect() {
         </div>` : ""}
     </div>
 
+    <div class="section-heading"><h3>Saved Quotes</h3></div>
+    <div class="card-list">
+      ${quotes.length ? quotes.map((quote) => `<article class="timeline-item"><div class="timeline-meta">${escapeHtml(quote.number)} · ${escapeHtml(quote.status)} · ${formatMoney(quote.total)}</div><div class="button-row"><button class="btn btn-small btn-secondary" data-reopen-quote="${quote.id}">Reopen</button>${quote.status !== "converted" ? `<button class="btn btn-small btn-primary" data-convert-quote="${quote.id}">Convert to Shopify</button>` : ""}</div></article>`).join("") : `<div class="empty">No saved quotes yet.</div>`}
+    </div>
+
     <div class="section-heading">
       <h3>Activity</h3>
     </div>
@@ -231,7 +264,8 @@ function renderProspect() {
   $("#editProspectBtn").addEventListener("click", openEditDialog);
 
   if ($("#completeReminderBtn")) {
-    $("#completeReminderBtn").addEventListener("click", () => {
+    $("#completeReminderBtn").addEventListener("click", async () => {
+      await crmAction("completeReminder", { id: reminder.id });
       reminder.completed = true;
       p.timeline.push({
         id: uid("activity"),
@@ -243,6 +277,8 @@ function renderProspect() {
       renderProspect();
     });
   }
+  document.querySelectorAll("[data-reopen-quote]").forEach((btn) => btn.addEventListener("click", () => startQuote(btn.dataset.reopenQuote)));
+  document.querySelectorAll("[data-convert-quote]").forEach((btn) => btn.addEventListener("click", () => convertQuoteToShopify(btn.dataset.convertQuote)));
 }
 
 function openEditDialog() {
@@ -254,8 +290,9 @@ function openEditDialog() {
   $("#editDialog").showModal();
 }
 
-function startQuote() {
-  draftQuoteLines = [];
+function startQuote(quoteId = null) {
+  const quote = quoteId ? prospectById(currentProspectId).quotes.find((q) => q.id === quoteId) : null;
+  draftQuoteLines = quote ? quote.lines.map((line) => ({ ...line })) : [];
   const p = prospectById(currentProspectId);
   $("#quoteProspectName").textContent = p.companyName;
   $("#productSearch").value = "";
@@ -360,28 +397,19 @@ async function saveQuote() {
   }
 
   const p = prospectById(currentProspectId);
-  const saveButton = $("#saveQuoteBtn");
-  saveButton.disabled = true;
-  saveButton.textContent = "Pushing to Shopify…";
-  let shopifyDraft;
-  try {
-    const response = await crmFetch("/api/draft-orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prospect: p, lines: draftQuoteLines }),
-    });
-    const body = await response.json();
-    if (!response.ok) throw new Error(body.error || "Shopify rejected the quote.");
-    shopifyDraft = body.draftOrder;
-  } catch (error) {
-    alert(`Quote was not pushed: ${error.message}`);
-    saveButton.disabled = false;
-    saveButton.textContent = "Push Quote to Shopify";
-    return;
-  }
   const total = draftQuoteLines.reduce((sum, line) => sum + line.unitPrice * line.qty, 0);
   const quoteNumber = `Q-${String(Date.now()).slice(-6)}`;
-
+  const saveButton = $("#saveQuoteBtn");
+  saveButton.disabled = true;
+  saveButton.textContent = "Saving in CRM…";
+  try {
+    await crmAction("saveQuote", { prospectId: p.id, quoteNumber, lines: draftQuoteLines, createdBy: "Greg" });
+  } catch (error) {
+    alert(`Quote was not saved: ${error.message}`);
+    saveButton.disabled = false;
+    saveButton.textContent = "Save Draft in CRM";
+    return;
+  }
   const quote = {
     id: uid("quote"),
     number: quoteNumber,
@@ -389,9 +417,6 @@ async function saveQuote() {
     status: "Draft",
     lines: draftQuoteLines.map((x) => ({ ...x })),
     total,
-    shopifyDraftOrderId: shopifyDraft.id,
-    shopifyDraftOrderName: shopifyDraft.name,
-    invoiceUrl: shopifyDraft.invoiceUrl,
   };
 
   p.quotes = p.quotes || [];
@@ -402,14 +427,26 @@ async function saveQuote() {
     id: uid("activity"),
     at: nowIso(),
     user: "Greg",
-    text: `Created Shopify Draft Order ${shopifyDraft.name} — ${formatMoney(total)}`
+    text: `Saved CRM Quote ${quoteNumber} — ${formatMoney(total)}`
   });
 
   saveState();
   renderProspect();
   showView("prospectView");
   saveButton.disabled = false;
-  saveButton.textContent = "Push Quote to Shopify";
+  saveButton.textContent = "Save Draft in CRM";
+  await refreshCrm(p.id);
+}
+
+async function convertQuoteToShopify(quoteId) {
+  const p = prospectById(currentProspectId);
+  const quote = p.quotes.find((q) => q.id === quoteId);
+  if (!quote || !confirm(`Create a real Shopify Draft Order from ${quote.number}?`)) return;
+  const response = await crmFetch("/api/draft-orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prospect: p, lines: quote.lines }) });
+  const body = await response.json();
+  if (!response.ok) return alert(body.error || "Shopify conversion failed.");
+  await crmAction("markQuoteConverted", { quoteId, shopifyDraftOrderId: body.draftOrder.id, shopifyDraftOrderName: body.draftOrder.name, invoiceUrl: body.draftOrder.invoiceUrl });
+  await refreshCrm(p.id);
 }
 
 function convertToCustomer() {
@@ -466,7 +503,7 @@ document.querySelectorAll("[data-back]").forEach((btn) =>
   })
 );
 
-$("#prospectForm").addEventListener("submit", (event) => {
+$("#prospectForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const data = new FormData(event.currentTarget);
   const companyName = String(data.get("companyName") || "").trim();
@@ -509,15 +546,13 @@ $("#prospectForm").addEventListener("submit", (event) => {
     });
   }
 
-  state.prospects.push(prospect);
-  saveState();
+  const created = await crmAction("createProspect", { ...prospect, notes });
   event.currentTarget.reset();
   $("#prospectDialog").close();
-  renderHome();
-  openProspect(prospect.id);
+  await refreshCrm(created.prospect.id);
 });
 
-$("#editForm").addEventListener("submit", (event) => {
+$("#editForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const p = prospectById(currentProspectId);
   const data = new FormData(event.currentTarget);
@@ -526,13 +561,9 @@ $("#editForm").addEventListener("submit", (event) => {
     p[name] = String(data.get(name) || "").trim();
   });
   p.estimatedValue = Number(data.get("estimatedValue") || 0);
-  if (p.stage === "Won" && !p.customerId) p.customerId = `shopify_demo_${Date.now()}`;
-  if (oldStage !== p.stage) {
-    p.timeline.push({ id: uid("activity"), at: nowIso(), user: "Greg", text: `Moved from ${oldStage} to ${p.stage}.` });
-  }
-  saveState();
+  await crmAction("updateProspect", { ...p, id: p.id, oldStage, user: "Greg" });
   $("#editDialog").close();
-  renderProspect();
+  await refreshCrm(p.id);
 });
 
 function exportCsv() {
@@ -546,7 +577,7 @@ function exportCsv() {
   URL.revokeObjectURL(link.href);
 }
 
-$("#noteForm").addEventListener("submit", (event) => {
+$("#noteForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   const p = prospectById(currentProspectId);
   const data = new FormData(event.currentTarget);
@@ -579,10 +610,10 @@ $("#noteForm").addEventListener("submit", (event) => {
     });
   }
 
-  saveState();
+  await crmAction("addNote", { prospectId: p.id, note, reminderDate, user: "Greg" });
   event.currentTarget.reset();
   $("#noteDialog").close();
-  renderProspect();
+  await refreshCrm(p.id);
 });
 
 $("#productSearch").addEventListener("input", (event) => {
@@ -596,3 +627,4 @@ $("#cancelQuoteBtn").addEventListener("click", () => {
 });
 
 renderHome();
+refreshCrm().catch((error) => console.warn("Supabase CRM load failed:", error));
