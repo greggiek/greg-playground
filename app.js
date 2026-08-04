@@ -217,8 +217,13 @@ function renderProspect() {
           <p class="contact-line">${escapeHtml(p.address || "No address")}</p>
           <div class="record-meta"><span class="badge ${stageClass(p.stage)}">${escapeHtml(p.stage)}</span><span class="badge">Owner: ${escapeHtml(p.owner)}</span><span class="badge">Value: ${formatMoney(p.estimatedValue)}</span></div>
         </div>
-        <div>
+        <div class="owner-control">
           <span class="badge">${p.customerId ? "Customer" : "Prospect"}</span>
+          <label for="accountOwnerSelect">Account Owner</label>
+          <select id="accountOwnerSelect">
+            <option value="Greg" ${p.owner === "Greg" ? "selected" : ""}>Greg</option>
+            <option value="Craig" ${p.owner === "Craig" ? "selected" : ""}>Craig</option>
+          </select>
         </div>
       </div>
 
@@ -265,6 +270,7 @@ function renderProspect() {
   $("#buildQuoteBtn").addEventListener("click", startQuote);
   $("#editProspectBtn").addEventListener("click", openEditDialog);
   $("#deleteProspectBtn").addEventListener("click", deleteCurrentProspect);
+  $("#accountOwnerSelect").addEventListener("change", (event) => updateAccountOwner(event.target.value));
 
   if ($("#completeReminderBtn")) {
     $("#completeReminderBtn").addEventListener("click", async () => {
@@ -296,6 +302,22 @@ async function deleteCurrentProspect() {
   currentProspectId = null;
   await refreshCrm();
   showView("homeView");
+}
+
+async function updateAccountOwner(owner) {
+  const p = prospectById(currentProspectId);
+  if (!p || owner === p.owner) return;
+  const oldOwner = p.owner;
+  const select = $("#accountOwnerSelect");
+  select.disabled = true;
+  try {
+    await crmAction("updateOwner", { id: p.id, owner, oldOwner, user: "Greg" });
+    await refreshCrm(p.id);
+  } catch (error) {
+    select.value = oldOwner;
+    select.disabled = false;
+    alert(`Owner was not changed: ${error.message}`);
+  }
 }
 
 function openEditDialog() {
