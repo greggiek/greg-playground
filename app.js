@@ -246,7 +246,7 @@ function renderProspect() {
 
     <div class="section-heading"><h3>Saved Quotes</h3></div>
     <div class="card-list">
-      ${quotes.length ? quotes.map((quote) => `<article class="timeline-item"><div class="timeline-meta">${escapeHtml(quote.number)} · ${escapeHtml(quote.status)} · ${formatMoney(quote.total)}</div><div class="button-row"><button class="btn btn-small btn-secondary" data-reopen-quote="${quote.id}">Reopen</button>${quote.status !== "converted" ? `<button class="btn btn-small btn-primary" data-convert-quote="${quote.id}">Convert to Shopify</button>` : ""}</div></article>`).join("") : `<div class="empty">No saved quotes yet.</div>`}
+      ${quotes.length ? quotes.map((quote) => `<article class="timeline-item"><div class="timeline-meta">${escapeHtml(quote.number)} · ${escapeHtml(quote.status)} · ${formatMoney(quote.total)}</div><div class="button-row"><button class="btn btn-small btn-secondary" data-reopen-quote="${quote.id}">Reopen</button>${quote.status !== "converted" ? `<button class="btn btn-small btn-primary" data-convert-quote="${quote.id}">Convert to Shopify</button>` : ""}<button class="btn btn-small btn-danger" data-delete-quote="${quote.id}">Delete Quote</button></div></article>`).join("") : `<div class="empty">No saved quotes yet.</div>`}
     </div>
 
     <div class="section-heading">
@@ -282,6 +282,7 @@ function renderProspect() {
   }
   document.querySelectorAll("[data-reopen-quote]").forEach((btn) => btn.addEventListener("click", () => startQuote(btn.dataset.reopenQuote)));
   document.querySelectorAll("[data-convert-quote]").forEach((btn) => btn.addEventListener("click", () => convertQuoteToShopify(btn.dataset.convertQuote)));
+  document.querySelectorAll("[data-delete-quote]").forEach((btn) => btn.addEventListener("click", () => deleteQuote(btn.dataset.deleteQuote)));
 }
 
 async function deleteCurrentProspect() {
@@ -623,6 +624,16 @@ async function convertQuoteToShopify(quoteId) {
   const body = await response.json();
   if (!response.ok) return alert(body.error || "Shopify conversion failed.");
   await crmAction("markQuoteConverted", { quoteId, shopifyDraftOrderId: body.draftOrder.id, shopifyDraftOrderName: body.draftOrder.name, invoiceUrl: body.draftOrder.invoiceUrl });
+  await refreshCrm(p.id);
+}
+
+async function deleteQuote(quoteId) {
+  const p = prospectById(currentProspectId);
+  const quote = p.quotes.find((item) => item.id === quoteId);
+  if (!quote) return;
+  const shopifyNote = quote.status === "converted" ? "\n\nThe Shopify draft order will NOT be deleted." : "";
+  if (!confirm(`Permanently delete CRM quote ${quote.number}?${shopifyNote}`)) return;
+  await crmAction("deleteQuote", { quoteId, user: "Greg" });
   await refreshCrm(p.id);
 }
 
