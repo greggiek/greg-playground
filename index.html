@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bargain Prospect CRM</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">BARGAIN MOULDING</p>
+        <h1>Prospect CRM</h1>
+      </div>
+      <button id="newProspectBtn" class="btn btn-primary">+ New Prospect</button>
+    </header>
+
+    <main>
+      <section id="homeView" class="view active">
+        <div class="hero-card">
+          <div>
+            <p class="eyebrow">TODAY</p>
+            <h2>Who needs attention?</h2>
+          </div>
+          <div id="followUpCount" class="count-pill">0</div>
+        </div>
+
+        <div class="stats-grid" aria-label="Pipeline summary">
+          <article class="stat-card"><span>Open Pipeline</span><strong id="pipelineValue">$0</strong></article>
+          <article class="stat-card"><span>Active Prospects</span><strong id="activeCount">0</strong></article>
+          <article class="stat-card"><span>Quotes</span><strong id="quoteCount">0</strong></article>
+          <article class="stat-card"><span>Customers Won</span><strong id="wonCount">0</strong></article>
+        </div>
+
+        <div class="toolbar">
+          <input id="searchInput" type="search" placeholder="Search prospects..." />
+          <select id="stageFilter" aria-label="Filter by pipeline stage">
+            <option value="">All stages</option><option>New Lead</option><option>Contacted</option><option>Quoting</option><option>Follow-Up</option><option>Won</option><option>Lost</option>
+          </select>
+          <button id="exportBtn" class="btn btn-secondary" type="button">Export CSV</button>
+        </div>
+
+        <section>
+          <div class="section-heading">
+            <h3>Today's Follow-Ups</h3>
+          </div>
+          <div id="followUpList" class="card-list"></div>
+        </section>
+
+        <section>
+          <div class="section-heading">
+            <h3>Prospects</h3>
+          </div>
+          <div id="prospectList" class="card-list"></div>
+        </section>
+      </section>
+
+      <section id="prospectView" class="view">
+        <button class="back-link" data-back>← Back</button>
+        <div id="prospectDetail"></div>
+      </section>
+
+      <section id="quoteView" class="view">
+        <button class="back-link" data-back>← Back</button>
+        <div class="page-card">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">BUILD QUOTE</p>
+              <h2 id="quoteProspectName"></h2>
+            </div>
+          </div>
+
+          <label class="field-label" for="productSearch">Search Shopify products</label>
+          <input id="productSearch" type="search" placeholder="Search product, SKU, or variant..." />
+          <div id="productResults" class="product-results"></div>
+
+          <div class="section-heading quote-heading">
+            <h3>Line Items</h3>
+          </div>
+          <div id="quoteLines"></div>
+
+          <div class="quote-total">
+            <span>Total</span>
+            <strong id="quoteTotal">$0.00</strong>
+          </div>
+
+          <div class="button-row">
+            <button id="saveQuoteBtn" class="btn btn-primary">Save Quote</button>
+            <button id="cancelQuoteBtn" class="btn btn-secondary">Cancel</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="prospectDialog">
+    <form id="prospectForm" method="dialog">
+      <div class="dialog-header">
+        <div>
+          <p class="eyebrow">CAPTURE IT FAST</p>
+          <h2>Add New Prospect</h2>
+        </div>
+        <button type="button" class="icon-btn" data-close-dialog aria-label="Close">×</button>
+      </div>
+
+      <label>
+        Company Name
+        <input name="companyName" required autofocus />
+      </label>
+
+      <label>
+        Phone Number
+        <input name="phone" type="tel" />
+      </label>
+
+      <label>Contact Name<input name="contactName" /></label>
+      <label>Email<input name="email" type="email" /></label>
+
+      <label>
+        Address
+        <input name="address" />
+      </label>
+
+      <div class="form-grid">
+        <label>Pipeline Stage<select name="stage"><option>New Lead</option><option>Contacted</option><option>Quoting</option><option>Follow-Up</option><option>Won</option><option>Lost</option></select></label>
+        <label>Estimated Value<input name="estimatedValue" type="number" min="0" step="0.01" placeholder="0.00" /></label>
+      </div>
+      <label>Owner<select name="owner"><option>Greg</option><option>Joe</option><option>Jennie</option><option>Rach</option></select></label>
+
+      <label>
+        Notes
+        <textarea name="notes" rows="4"></textarea>
+      </label>
+
+      <div class="button-row">
+        <button class="btn btn-primary" type="submit">Save Prospect</button>
+        <button class="btn btn-secondary" type="button" data-close-dialog>Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="editDialog">
+    <form id="editForm" method="dialog">
+      <div class="dialog-header"><div><p class="eyebrow">UPDATE RECORD</p><h2>Edit Prospect</h2></div><button type="button" class="icon-btn" data-close-edit aria-label="Close">×</button></div>
+      <label>Company Name<input name="companyName" required /></label>
+      <div class="form-grid"><label>Contact Name<input name="contactName" /></label><label>Phone Number<input name="phone" type="tel" /></label></div>
+      <label>Email<input name="email" type="email" /></label>
+      <label>Address<input name="address" /></label>
+      <div class="form-grid"><label>Pipeline Stage<select name="stage"><option>New Lead</option><option>Contacted</option><option>Quoting</option><option>Follow-Up</option><option>Won</option><option>Lost</option></select></label><label>Estimated Value<input name="estimatedValue" type="number" min="0" step="0.01" /></label></div>
+      <label>Owner<select name="owner"><option>Greg</option><option>Joe</option><option>Jennie</option><option>Rach</option></select></label>
+      <div class="button-row"><button class="btn btn-primary" type="submit">Save Changes</button><button class="btn btn-secondary" type="button" data-close-edit>Cancel</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="noteDialog">
+    <form id="noteForm" method="dialog">
+      <div class="dialog-header">
+        <div>
+          <p class="eyebrow">ACTIVITY LOG</p>
+          <h2>Add Note</h2>
+        </div>
+        <button type="button" class="icon-btn" data-close-note aria-label="Close">×</button>
+      </div>
+
+      <label>
+        Note
+        <textarea name="note" rows="5" required></textarea>
+      </label>
+
+      <label>
+        Remind Me
+        <select name="reminder">
+          <option value="">No Reminder</option>
+          <option value="1">Tomorrow</option>
+          <option value="3">In 3 Days</option>
+          <option value="7">In 1 Week</option>
+        </select>
+      </label>
+
+      <label>
+        Custom Date
+        <input name="customDate" type="date" />
+      </label>
+
+      <div class="button-row">
+        <button class="btn btn-primary" type="submit">Save Note</button>
+        <button class="btn btn-secondary" type="button" data-close-note>Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
