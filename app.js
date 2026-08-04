@@ -1,17 +1,9 @@
 const STORAGE_KEY = "bargainProspectCRM.v1";
 
-const mockShopifyProducts = [
-  { id: "gid://shopify/ProductVariant/1", title: '2-Panel Shaker Door', variant: '30" x 80"', sku: "SHAKER-2P-3080", price: 190.00 },
-  { id: "gid://shopify/ProductVariant/2", title: '2-Panel Shaker Door', variant: '32" x 80"', sku: "SHAKER-2P-3280", price: 198.00 },
-  { id: "gid://shopify/ProductVariant/3", title: '5-1/4" MDF Base', variant: "16 ft", sku: "MDF-BASE-514-16", price: 18.50 },
-  { id: "gid://shopify/ProductVariant/4", title: '3-1/2" MDF Casing', variant: "16 ft", sku: "MDF-CASING-312-16", price: 14.75 },
-  { id: "gid://shopify/ProductVariant/5", title: "1x6 PVC Board", variant: "18 ft", sku: "PVC-1X6-18", price: 42.00 },
-  { id: "gid://shopify/ProductVariant/6", title: "Essential LVP Flooring", variant: "9 x 60", sku: "LVP-ESSENTIAL", price: 2.25 },
-];
-
 let state = loadState();
 let currentProspectId = null;
 let draftQuoteLines = [];
+let productSearchTimer = null;
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -199,7 +191,8 @@ function renderProspect() {
 
       ${latestQuote ? `
         <div class="info-strip">
-          <strong>Latest Quote:</strong> ${escapeHtml(latestQuote.number)} — ${formatMoney(latestQuote.total)}
+          <strong>Latest Quote:</strong> ${escapeHtml(latestQuote.shopifyDraftOrderName || latestQuote.number)} — ${formatMoney(latestQuote.total)}
+          ${latestQuote.invoiceUrl ? `<a class="btn btn-small btn-secondary" href="${escapeHtml(latestQuote.invoiceUrl)}" target="_blank" rel="noopener">Open invoice</a>` : ""}
         </div>` : ""}
     </div>
 
@@ -253,21 +246,35 @@ function startQuote() {
   showView("quoteView");
 }
 
-function renderProductResults(query) {
-  const q = query.trim().toLowerCase();
-  const products = mockShopifyProducts.filter((product) =>
-    [product.title, product.variant, product.sku].join(" ").toLowerCase().includes(q)
-  ).slice(0, 20);
+async function renderProductResults(query) {
+  $("#productResults").innerHTML = `<div class="empty">Loading Shopify products…</div>`;
+  $("#shopifyStatus").textContent = "Connecting to live Shopify catalog…";
+  $("#shopifyStatus").classList.remove("error");
+  let products = [];
+  try {
+    const response = await fetch(`/api/products?search=${encodeURIComponent(query.trim())}`);
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error || "Product search failed.");
+    products = body.products || [];
+    $("#shopifyStatus").textContent = `${products.length} live Shopify variants found`;
+  } catch (error) {
+    $("#shopifyStatus").textContent = error.message;
+    $("#shopifyStatus").classList.add("error");
+    $("#productResults").innerHTML = `<div class="empty">Shopify is not connected yet. Add the Vercel environment variables, then redeploy.</div>`;
+    return;
+  }
 
-  $("#productResults").innerHTML = products.map((product) => `
+  $("#productResults").innerHTML = products.length ? products.map((product) => `
     <div class="product-result">
       <div>
         <div class="product-name">${escapeHtml(product.title)} — ${escapeHtml(product.variant)}</div>
-        <div class="product-meta">${escapeHtml(product.sku)} · ${formatMoney(product.price)}</div>
+        <div class="product-meta">${escapeHtml(product.sku)} · ${formatMoney(product.price)} · ${product.inventoryQuantity ?? "?"} available</div>
       </div>
       <button class="btn btn-small btn-primary" data-add-product="${product.id}">Add</button>
     </div>
-  `).join("");
+  `).join("") : `<div class="empty">No matching Shopify variants.</div>`;
+
+  window.liveShopifyProducts = products;
 
   document.querySelectorAll("[data-add-product]").forEach((btn) => {
     btn.addEventListener("click", () => addProductToQuote(btn.dataset.addProduct));
@@ -275,7 +282,8 @@ function renderProductResults(query) {
 }
 
 function addProductToQuote(productId) {
-  const product = mockShopifyProducts.find((p) => p.id === productId);
+  const product = (window.liveShopifyProducts || []).find((p) => p.id === productId);
+  if (!product) return;
   const existing = draftQuoteLines.find((line) => line.productId === productId);
   if (existing) {
     existing.qty += 1;
@@ -327,13 +335,32 @@ function renderQuoteLines() {
   $("#quoteTotal").textContent = formatMoney(total);
 }
 
-function saveQuote() {
+async function saveQuote() {
   if (!draftQuoteLines.length) {
     alert("Add at least one product.");
     return;
   }
 
   const p = prospectById(currentProspectId);
+  const saveButton = $("#saveQuoteBtn");
+  saveButton.disabled = true;
+  saveButton.textContent = "Pushing to Shopify…";
+  let shopifyDraft;
+  try {
+    const response = await fetch("/api/draft-orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prospect: p, lines: draftQuoteLines }),
+    });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error || "Shopify rejected the quote.");
+    shopifyDraft = body.draftOrder;
+  } catch (error) {
+    alert(`Quote was not pushed: ${error.message}`);
+    saveButton.disabled = false;
+    saveButton.textContent = "Push Quote to Shopify";
+    return;
+  }
   const total = draftQuoteLines.reduce((sum, line) => sum + line.unitPrice * line.qty, 0);
   const quoteNumber = `Q-${String(Date.now()).slice(-6)}`;
 
@@ -344,6 +371,9 @@ function saveQuote() {
     status: "Draft",
     lines: draftQuoteLines.map((x) => ({ ...x })),
     total,
+    shopifyDraftOrderId: shopifyDraft.id,
+    shopifyDraftOrderName: shopifyDraft.name,
+    invoiceUrl: shopifyDraft.invoiceUrl,
   };
 
   p.quotes = p.quotes || [];
@@ -354,12 +384,14 @@ function saveQuote() {
     id: uid("activity"),
     at: nowIso(),
     user: "Greg",
-    text: `Created Quote ${quoteNumber} — ${formatMoney(total)}`
+    text: `Created Shopify Draft Order ${shopifyDraft.name} — ${formatMoney(total)}`
   });
 
   saveState();
   renderProspect();
   showView("prospectView");
+  saveButton.disabled = false;
+  saveButton.textContent = "Push Quote to Shopify";
 }
 
 function convertToCustomer() {
@@ -535,7 +567,10 @@ $("#noteForm").addEventListener("submit", (event) => {
   renderProspect();
 });
 
-$("#productSearch").addEventListener("input", (event) => renderProductResults(event.target.value));
+$("#productSearch").addEventListener("input", (event) => {
+  clearTimeout(productSearchTimer);
+  productSearchTimer = setTimeout(() => renderProductResults(event.target.value), 300);
+});
 $("#saveQuoteBtn").addEventListener("click", saveQuote);
 $("#cancelQuoteBtn").addEventListener("click", () => {
   renderProspect();
