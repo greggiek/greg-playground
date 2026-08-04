@@ -150,6 +150,8 @@ textarea { resize: vertical; }
   grid-template-columns: 1fr auto;
   gap: 20px;
 }
+.owner-control { display: grid; gap: 6px; min-width: 150px; color: var(--muted); font-size: .78rem; font-weight: 800; }
+.owner-control select { padding: 9px 10px; border-radius: 10px; font-weight: 800; }
 .contact-line { color: var(--muted); margin: 3px 0; }
 .record-meta { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
 .badge.stage-won { background: #dcfae6; color: var(--success); }
