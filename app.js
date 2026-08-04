@@ -224,9 +224,11 @@ function renderProspect() {
 
       <div class="action-grid">
         <a class="btn btn-secondary" href="${p.phone ? `tel:${encodeURIComponent(p.phone)}` : "#"}">Call</a>
+        <a class="btn btn-secondary ${p.email ? "" : "disabled"}" href="${p.email ? `mailto:${encodeURIComponent(p.email)}?subject=${encodeURIComponent(`Quote from Bargain Moulding for ${p.companyName}`)}` : "#"}" ${p.email ? "" : 'aria-disabled="true"'}>Email</a>
         <button class="btn btn-secondary" id="addNoteBtn">Add Note</button>
         <button class="btn btn-primary" id="buildQuoteBtn">Build Quote</button>
         <button class="btn btn-secondary" id="editProspectBtn">Edit</button>
+        <button class="btn btn-danger" id="deleteProspectBtn">Delete</button>
       </div>
 
       ${reminder ? `
@@ -262,6 +264,7 @@ function renderProspect() {
   $("#addNoteBtn").addEventListener("click", () => $("#noteDialog").showModal());
   $("#buildQuoteBtn").addEventListener("click", startQuote);
   $("#editProspectBtn").addEventListener("click", openEditDialog);
+  $("#deleteProspectBtn").addEventListener("click", deleteCurrentProspect);
 
   if ($("#completeReminderBtn")) {
     $("#completeReminderBtn").addEventListener("click", async () => {
@@ -279,6 +282,19 @@ function renderProspect() {
   }
   document.querySelectorAll("[data-reopen-quote]").forEach((btn) => btn.addEventListener("click", () => startQuote(btn.dataset.reopenQuote)));
   document.querySelectorAll("[data-convert-quote]").forEach((btn) => btn.addEventListener("click", () => convertQuoteToShopify(btn.dataset.convertQuote)));
+}
+
+async function deleteCurrentProspect() {
+  const p = prospectById(currentProspectId);
+  const typed = prompt(`This permanently deletes ${p.companyName} and every attached note, reminder, and CRM quote.\n\nType the company name exactly to confirm:`);
+  if (typed !== p.companyName) {
+    if (typed !== null) alert("Company name did not match. Nothing was deleted.");
+    return;
+  }
+  await crmAction("deleteProspect", { id: p.id });
+  currentProspectId = null;
+  await refreshCrm();
+  showView("homeView");
 }
 
 function openEditDialog() {
