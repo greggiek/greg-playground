@@ -1,6 +1,9 @@
 const { requireCrmAccess } = require("./_auth");
 const { supabaseRest } = require("./_supabase");
 
+const OWNERS = new Set(["Greg", "Craig"]);
+function validOwner(value) { return OWNERS.has(value) ? value : "Greg"; }
+
 module.exports = async function handler(req, res) {
   if (!requireCrmAccess(req, res)) return;
   try {
@@ -15,16 +18,24 @@ module.exports = async function handler(req, res) {
     if (action === "createProspect") {
       const [prospect] = await supabaseRest("crm_prospects", {
         method: "POST", headers: { Prefer: "return=representation" },
-        body: JSON.stringify({ company_name: data.companyName, contact_name: data.contactName || "", email: data.email || "", phone: data.phone || "", address: data.address || "", stage: data.stage || "New Lead", estimated_value: Number(data.estimatedValue || 0), owner_name: data.owner || "Greg", created_by: data.createdBy || "Greg" }),
+        body: JSON.stringify({ company_name: data.companyName, contact_name: data.contactName || "", email: data.email || "", phone: data.phone || "", address: data.address || "", stage: data.stage || "New Lead", estimated_value: Number(data.estimatedValue || 0), owner_name: validOwner(data.owner), created_by: data.createdBy || "Greg" }),
       });
       await supabaseRest("crm_activities", { method: "POST", body: JSON.stringify({ prospect_id: prospect.id, activity_type: "created", body: data.notes || "Created prospect.", user_name: data.createdBy || "Greg" }) });
       return res.status(201).json({ prospect });
     }
 
     if (action === "updateProspect") {
-      const patch = { company_name: data.companyName, contact_name: data.contactName || "", email: data.email || "", phone: data.phone || "", address: data.address || "", stage: data.stage, estimated_value: Number(data.estimatedValue || 0), owner_name: data.owner };
+      const patch = { company_name: data.companyName, contact_name: data.contactName || "", email: data.email || "", phone: data.phone || "", address: data.address || "", stage: data.stage, estimated_value: Number(data.estimatedValue || 0), owner_name: validOwner(data.owner) };
       const [prospect] = await supabaseRest(`crm_prospects?id=eq.${encodeURIComponent(data.id)}`, { method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify(patch) });
       if (data.oldStage && data.oldStage !== data.stage) await supabaseRest("crm_activities", { method: "POST", body: JSON.stringify({ prospect_id: data.id, activity_type: "stage", body: `Moved from ${data.oldStage} to ${data.stage}.`, user_name: data.user || "Greg" }) });
+      return res.status(200).json({ prospect });
+    }
+
+    if (action === "updateOwner") {
+      if (!data.id || !OWNERS.has(data.owner)) return res.status(400).json({ error: "Choose Greg or Craig as the account owner." });
+      const [prospect] = await supabaseRest(`crm_prospects?id=eq.${encodeURIComponent(data.id)}`, { method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify({ owner_name: data.owner }) });
+      if (!prospect) return res.status(404).json({ error: "Prospect not found." });
+      await supabaseRest("crm_activities", { method: "POST", body: JSON.stringify({ prospect_id: data.id, activity_type: "owner", body: `Account owner changed from ${data.oldOwner || "Unassigned"} to ${data.owner}.`, user_name: data.user || "Greg" }) });
       return res.status(200).json({ prospect });
     }
 
