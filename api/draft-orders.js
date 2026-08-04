@@ -1,9 +1,10 @@
 const { shopifyGraphql } = require("./_shopify");
-const { requireCrmAccess } = require("./_auth");
+const { requireCrmAccess, requireManager } = require("./_auth");
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
   if (!requireCrmAccess(req, res)) return;
+  if (!requireManager(req, res)) return;
   try {
     const { prospect, lines } = req.body || {};
     if (!prospect?.companyName || !Array.isArray(lines) || !lines.length) {
