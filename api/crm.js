@@ -39,6 +39,12 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
+    if (action === "deleteProspect") {
+      if (!data.id) return res.status(400).json({ error: "Prospect ID is required." });
+      await supabaseRest(`crm_prospects?id=eq.${encodeURIComponent(data.id)}`, { method: "DELETE" });
+      return res.status(200).json({ ok: true });
+    }
+
     if (action === "saveQuote") {
       const total = (data.lines || []).reduce((sum, line) => sum + Number(line.unitPrice) * Number(line.qty), 0);
       const [quote] = await supabaseRest("crm_quotes", {
