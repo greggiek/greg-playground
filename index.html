@@ -14,7 +14,9 @@
         <h1>Prospect CRM</h1>
       </div>
       <div class="header-actions">
-        <button id="importProspectsBtn" class="btn btn-secondary">Import</button>
+        <span id="profileBadge" class="profile-badge" hidden></span>
+        <button id="switchUserBtn" class="btn btn-secondary" type="button" hidden>Switch User</button>
+        <button id="importProspectsBtn" class="btn btn-secondary" hidden>Import</button>
         <button id="newProspectBtn" class="btn btn-primary">+ New Prospect</button>
       </div>
     </header>
@@ -41,7 +43,7 @@
           <select id="stageFilter" aria-label="Filter by pipeline stage">
             <option value="">All stages</option><option>New Lead</option><option>Contacted</option><option>Quoting</option><option>Follow-Up</option><option>Won</option><option>Lost</option>
           </select>
-          <button id="exportBtn" class="btn btn-secondary" type="button">Export CSV</button>
+          <button id="exportBtn" class="btn btn-secondary" type="button" hidden>Export CSV</button>
         </div>
 
         <section>
@@ -131,7 +133,7 @@
         <label>Pipeline Stage<select name="stage"><option>New Lead</option><option>Contacted</option><option>Quoting</option><option>Follow-Up</option><option>Won</option><option>Lost</option></select></label>
         <label>Estimated Value<input name="estimatedValue" type="number" min="0" step="0.01" placeholder="0.00" /></label>
       </div>
-      <label>Owner<select name="owner"><option>Greg</option><option>Craig</option></select></label>
+      <label>Owner<select name="owner"><option>Greg</option><option>Craig</option><option>Rep 1</option></select></label>
 
       <label>
         Notes
@@ -153,7 +155,7 @@
       <label>Email<input name="email" type="email" /></label>
       <label>Address<input name="address" /></label>
       <div class="form-grid"><label>Pipeline Stage<select name="stage"><option>New Lead</option><option>Contacted</option><option>Quoting</option><option>Follow-Up</option><option>Won</option><option>Lost</option></select></label><label>Estimated Value<input name="estimatedValue" type="number" min="0" step="0.01" /></label></div>
-      <label>Owner<select name="owner"><option>Greg</option><option>Craig</option></select></label>
+      <label>Owner<select name="owner"><option>Greg</option><option>Craig</option><option>Rep 1</option></select></label>
       <div class="button-row"><button class="btn btn-primary" type="submit">Save Changes</button><button class="btn btn-secondary" type="button" data-close-edit>Cancel</button></div>
     </form>
   </dialog>
@@ -205,7 +207,7 @@
       <label>File<input name="file" type="file" accept=".csv,.xlsx" required /></label>
       <div class="form-grid">
         <label>Import As<select name="recordType"><option value="prospect">Prospects</option><option value="customer">Customers</option></select></label>
-        <label>Default Owner<select name="owner"><option>Greg</option><option>Craig</option></select></label>
+        <label>Default Owner<select name="owner"><option>Greg</option><option>Craig</option><option>Rep 1</option></select></label>
       </div>
       <p class="status-text">Duplicates are skipped by matching email or company + phone. Maximum 1,000 rows and 3 MB per file.</p>
       <div id="importStatus" class="import-status" aria-live="polite"></div>
