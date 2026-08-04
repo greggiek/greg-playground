@@ -1,10 +1,10 @@
 const readXlsxFile = require("read-excel-file/node");
-const { requireCrmAccess } = require("./_auth");
+const { requireCrmAccess, requireManager } = require("./_auth");
 const { supabaseRest } = require("./_supabase");
 
 const MAX_FILE_BYTES = 3 * 1024 * 1024;
 const MAX_ROWS = 1000;
-const OWNERS = new Set(["Greg", "Craig"]);
+const OWNERS = new Set(["Greg", "Craig", "Rep 1"]);
 
 function clean(value) {
   return String(value ?? "").trim();
@@ -94,6 +94,7 @@ function duplicateKeys(record) {
 
 module.exports = async function handler(req, res) {
   if (!requireCrmAccess(req, res)) return;
+  if (!requireManager(req, res)) return;
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
   try {
     const { fileName = "", fileBase64 = "", recordType = "prospect", owner = "Greg" } = req.body || {};
