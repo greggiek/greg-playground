@@ -1,3 +1,3 @@
 module.exports = function handler(req, res) {
-  res.status(200).json({ ok: true, shopifyConfigured: Boolean(process.env.SHOPIFY_STORE_DOMAIN && process.env.SHOPIFY_CLIENT_ID && process.env.SHOPIFY_CLIENT_SECRET), accessProtected: Boolean(process.env.CRM_ACCESS_CODE) });
+  res.status(200).json({ ok: true, shopifyConfigured: Boolean(process.env.SHOPIFY_STORE_DOMAIN && process.env.SHOPIFY_CLIENT_ID && process.env.SHOPIFY_CLIENT_SECRET), supabaseConfigured: Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SECRET_KEY), accessProtected: Boolean(process.env.CRM_ACCESS_CODE) });
 };
