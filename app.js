@@ -7,6 +7,24 @@ let productSearchTimer = null;
 
 const $ = (selector) => document.querySelector(selector);
 
+async function crmFetch(url, options = {}, retry = true) {
+  let accessCode = sessionStorage.getItem("bargainCrmAccessCode");
+  if (!accessCode) {
+    accessCode = prompt("Enter the Bargain CRM access code:");
+    if (!accessCode) throw new Error("CRM access code required.");
+    sessionStorage.setItem("bargainCrmAccessCode", accessCode);
+  }
+  const response = await fetch(url, {
+    ...options,
+    headers: { ...(options.headers || {}), "X-CRM-Access-Code": accessCode },
+  });
+  if (response.status === 401 && retry) {
+    sessionStorage.removeItem("bargainCrmAccessCode");
+    return crmFetch(url, options, false);
+  }
+  return response;
+}
+
 function loadState() {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
@@ -252,7 +270,7 @@ async function renderProductResults(query) {
   $("#shopifyStatus").classList.remove("error");
   let products = [];
   try {
-    const response = await fetch(`/api/products?search=${encodeURIComponent(query.trim())}`);
+    const response = await crmFetch(`/api/products?search=${encodeURIComponent(query.trim())}`);
     const body = await response.json();
     if (!response.ok) throw new Error(body.error || "Product search failed.");
     products = body.products || [];
@@ -347,7 +365,7 @@ async function saveQuote() {
   saveButton.textContent = "Pushing to Shopify…";
   let shopifyDraft;
   try {
-    const response = await fetch("/api/draft-orders", {
+    const response = await crmFetch("/api/draft-orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prospect: p, lines: draftQuoteLines }),
