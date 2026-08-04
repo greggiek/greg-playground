@@ -406,23 +406,29 @@ function renderQuoteLines() {
   $("#quoteTotal").textContent = formatMoney(total);
 }
 
-async function saveQuote() {
+async function saveQuote(emailAfterSave = false) {
   if (!draftQuoteLines.length) {
     alert("Add at least one product.");
     return;
   }
 
   const p = prospectById(currentProspectId);
+  if (emailAfterSave && !p.email) {
+    alert("Add an email address to this prospect before emailing the quote.");
+    return;
+  }
   const total = draftQuoteLines.reduce((sum, line) => sum + line.unitPrice * line.qty, 0);
   const quoteNumber = `Q-${String(Date.now()).slice(-6)}`;
   const saveButton = $("#saveQuoteBtn");
   saveButton.disabled = true;
+  $("#emailQuoteBtn").disabled = true;
   saveButton.textContent = "Saving in CRM…";
   try {
     await crmAction("saveQuote", { prospectId: p.id, quoteNumber, lines: draftQuoteLines, createdBy: "Greg" });
   } catch (error) {
     alert(`Quote was not saved: ${error.message}`);
     saveButton.disabled = false;
+    $("#emailQuoteBtn").disabled = false;
     saveButton.textContent = "Save Draft in CRM";
     return;
   }
@@ -450,7 +456,14 @@ async function saveQuote() {
   renderProspect();
   showView("prospectView");
   saveButton.disabled = false;
+  $("#emailQuoteBtn").disabled = false;
   saveButton.textContent = "Save Draft in CRM";
+  if (emailAfterSave) {
+    const itemLines = draftQuoteLines.map((line) => `${line.qty} × ${line.title}${line.variant ? ` — ${line.variant}` : ""} @ ${formatMoney(line.unitPrice)} = ${formatMoney(line.unitPrice * line.qty)}`);
+    const subject = `Bargain Moulding Quote ${quoteNumber} — ${p.companyName}`;
+    const body = [`Hi ${p.contactName || p.companyName},`, "", `Here is quote ${quoteNumber} from Bargain Moulding:`, "", ...itemLines, "", `Total: ${formatMoney(total)}`, "", "Please reply to this email with any questions or requested changes.", "", "Bargain Moulding"].join("\n");
+    window.location.href = `mailto:${encodeURIComponent(p.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
   await refreshCrm(p.id);
 }
 
@@ -636,7 +649,8 @@ $("#productSearch").addEventListener("input", (event) => {
   clearTimeout(productSearchTimer);
   productSearchTimer = setTimeout(() => renderProductResults(event.target.value), 300);
 });
-$("#saveQuoteBtn").addEventListener("click", saveQuote);
+$("#saveQuoteBtn").addEventListener("click", () => saveQuote(false));
+$("#emailQuoteBtn").addEventListener("click", () => saveQuote(true));
 $("#cancelQuoteBtn").addEventListener("click", () => {
   renderProspect();
   showView("prospectView");
