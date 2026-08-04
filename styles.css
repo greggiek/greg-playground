@@ -189,6 +189,8 @@ textarea { resize: vertical; }
 
 .page-card { padding: 22px; }
 .field-label { display: block; margin-bottom: 7px; font-weight: 800; }
+.status-text { color: var(--muted); font-size: .82rem; margin: 7px 0 0; }
+.status-text.error { color: var(--danger); }
 .product-results { display: grid; gap: 8px; margin-top: 10px; max-height: 240px; overflow: auto; }
 .product-result {
   display: flex;
