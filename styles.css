@@ -132,6 +132,7 @@ textarea { resize: vertical; }
 .btn-primary { background: var(--brand); color: white; }
 .btn-secondary { background: #eceff2; color: var(--text); }
 .btn-danger { background: #fee4e2; color: var(--danger); }
+.btn.disabled, .btn[aria-disabled="true"] { opacity: .45; pointer-events: none; }
 .btn-small { padding: 8px 10px; font-size: .86rem; }
 
 .back-link, .icon-btn {
