@@ -30,6 +30,7 @@ button, input, textarea, select { font: inherit; }
   border-bottom: 1px solid var(--border);
   backdrop-filter: blur(10px);
 }
+.header-actions { display: flex; gap: 10px; align-items: center; }
 
 h1, h2, h3, p { margin-top: 0; }
 h1 { margin-bottom: 0; font-size: clamp(1.3rem, 3vw, 1.8rem); }
@@ -247,6 +248,18 @@ dialog label { display: grid; gap: 7px; margin-top: 14px; font-weight: 800; }
   text-align: center;
 }
 
+.import-status {
+  display: none;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #eef6ff;
+  color: #1849a9;
+  font-weight: 750;
+}
+.import-status.visible { display: block; }
+.import-status.error { background: #fee4e2; color: var(--danger); }
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -260,6 +273,7 @@ dialog label { display: grid; gap: 7px; margin-top: 14px; font-weight: 800; }
 @media (max-width: 700px) {
   .app-header { align-items: flex-start; }
   .app-header .btn { padding: 10px 12px; }
+  .header-actions { flex-wrap: wrap; justify-content: flex-end; }
   .action-grid { grid-template-columns: repeat(2, 1fr); }
   .prospect-header-grid { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
