@@ -668,6 +668,12 @@ function escapeHtml(value = "") {
 }
 
 $("#newProspectBtn").addEventListener("click", () => $("#prospectDialog").showModal());
+$("#importProspectsBtn").addEventListener("click", () => {
+  $("#importForm").reset();
+  $("#importStatus").className = "import-status";
+  $("#importStatus").textContent = "";
+  $("#importDialog").showModal();
+});
 $("#searchInput").addEventListener("input", renderHome);
 $("#stageFilter").addEventListener("change", renderHome);
 $("#exportBtn").addEventListener("click", exportCsv);
@@ -682,6 +688,10 @@ document.querySelectorAll("[data-close-note]").forEach((btn) =>
 
 document.querySelectorAll("[data-close-edit]").forEach((btn) =>
   btn.addEventListener("click", () => $("#editDialog").close())
+);
+
+document.querySelectorAll("[data-close-import]").forEach((btn) =>
+  btn.addEventListener("click", () => $("#importDialog").close())
 );
 
 document.querySelectorAll("[data-back]").forEach((btn) =>
@@ -752,6 +762,48 @@ $("#editForm").addEventListener("submit", async (event) => {
   await crmAction("updateProspect", { ...p, id: p.id, oldStage, user: "Greg" });
   $("#editDialog").close();
   await refreshCrm(p.id);
+});
+
+$("#importForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const file = form.elements.file.files[0];
+  if (!file) return;
+  const status = $("#importStatus");
+  const button = $("#runImportBtn");
+  if (file.size > 3 * 1024 * 1024) {
+    status.className = "import-status visible error";
+    status.textContent = "That file is larger than 3 MB.";
+    return;
+  }
+  button.disabled = true;
+  button.textContent = "Importing…";
+  status.className = "import-status visible";
+  status.textContent = "Reading and checking your records…";
+  try {
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error("Could not read the selected file."));
+      reader.readAsDataURL(file);
+    });
+    const response = await crmFetch("/api/import-prospects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fileName: file.name, fileBase64: String(dataUrl).split(",")[1], recordType: form.elements.recordType.value, owner: form.elements.owner.value }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Import failed.");
+    status.className = "import-status visible";
+    status.textContent = `Imported ${result.imported} records. Skipped ${result.skippedDuplicates} duplicates and ${result.skippedBlank} blank rows.`;
+    await refreshCrm();
+    button.textContent = "Import Complete";
+  } catch (error) {
+    status.className = "import-status visible error";
+    status.textContent = error.message;
+    button.disabled = false;
+    button.textContent = "Import Records";
+  }
 });
 
 function exportCsv() {
