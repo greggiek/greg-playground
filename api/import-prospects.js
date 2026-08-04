@@ -4,6 +4,7 @@ const { supabaseRest } = require("./_supabase");
 
 const MAX_FILE_BYTES = 3 * 1024 * 1024;
 const MAX_ROWS = 1000;
+const OWNERS = new Set(["Greg", "Craig"]);
 
 function clean(value) {
   return String(value ?? "").trim();
@@ -66,7 +67,8 @@ function normalizeRow(record, defaults) {
   const valueText = pick(record, ["estimated value", "estimatedvalue", "value", "pipeline value"]);
   const estimatedValue = Number(valueText.replace(/[$,]/g, "")) || 0;
   const stage = pick(record, ["stage", "pipeline stage", "status"]) || defaults.stage;
-  const owner = pick(record, ["owner", "salesperson", "sales rep", "rep"]) || defaults.owner;
+  const importedOwner = pick(record, ["owner", "salesperson", "sales rep", "rep"]);
+  const owner = OWNERS.has(importedOwner) ? importedOwner : defaults.owner;
   return {
     company_name: company || fullName || email || phone,
     contact_name: fullName,
@@ -103,7 +105,7 @@ module.exports = async function handler(req, res) {
     if (rows.length - 1 > MAX_ROWS) return res.status(400).json({ error: `Import a maximum of ${MAX_ROWS} records at a time.` });
 
     const headers = rows[0].map(headerKey);
-    const defaults = { stage: recordType === "customer" ? "Won" : "New Lead", owner: clean(owner) || "Greg" };
+    const defaults = { stage: recordType === "customer" ? "Won" : "New Lead", owner: OWNERS.has(clean(owner)) ? clean(owner) : "Greg" };
     const normalized = rows.slice(1).map((values) => {
       const record = {};
       headers.forEach((header, index) => { if (header) record[header] = values[index] ?? ""; });
