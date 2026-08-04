@@ -458,13 +458,19 @@ async function saveQuote(emailAfterSave = false) {
   saveButton.disabled = false;
   $("#emailQuoteBtn").disabled = false;
   saveButton.textContent = "Save Draft in CRM";
+  await refreshCrm(p.id);
   if (emailAfterSave) {
     const itemLines = draftQuoteLines.map((line) => `${line.qty} × ${line.title}${line.variant ? ` — ${line.variant}` : ""} @ ${formatMoney(line.unitPrice)} = ${formatMoney(line.unitPrice * line.qty)}`);
     const subject = `Bargain Moulding Quote ${quoteNumber} — ${p.companyName}`;
     const body = [`Hi ${p.contactName || p.companyName},`, "", `Here is quote ${quoteNumber} from Bargain Moulding:`, "", ...itemLines, "", `Total: ${formatMoney(total)}`, "", "Please reply to this email with any questions or requested changes.", "", "Bargain Moulding"].join("\n");
-    window.location.href = `mailto:${encodeURIComponent(p.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const gmailUrl = new URL("https://mail.google.com/mail/");
+    gmailUrl.searchParams.set("view", "cm");
+    gmailUrl.searchParams.set("fs", "1");
+    gmailUrl.searchParams.set("to", p.email);
+    gmailUrl.searchParams.set("su", subject);
+    gmailUrl.searchParams.set("body", body);
+    window.location.assign(gmailUrl.toString());
   }
-  await refreshCrm(p.id);
 }
 
 async function convertQuoteToShopify(quoteId) {
