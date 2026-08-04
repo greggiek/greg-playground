@@ -263,6 +263,16 @@ dialog label { display: grid; gap: 7px; margin-top: 14px; font-weight: 800; }
 .import-status.visible { display: block; }
 .import-status.error { background: #fee4e2; color: var(--danger); }
 
+.bulk-email-layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(260px, .7fr); gap: 28px; }
+.bulk-email-filters { margin-top: 12px; }
+.bulk-email-filters label { display: grid; gap: 7px; font-weight: 800; }
+.recipient-summary { margin-top: 14px; padding: 13px 15px; border-radius: 12px; background: #fff8db; border: 1px solid #f0dc88; font-weight: 900; }
+.recipient-preview { margin-top: 8px; color: var(--muted); font-size: .82rem; line-height: 1.5; max-height: 90px; overflow: auto; }
+.template-field { margin-top: 14px; }
+.saved-templates { margin-top: 12px; }
+.saved-template-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px; }
+.saved-template-card strong { display: block; margin-bottom: 5px; }
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -282,6 +292,7 @@ dialog label { display: grid; gap: 7px; margin-top: 14px; font-weight: 800; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .toolbar { grid-template-columns: 1fr; }
   .form-grid { grid-template-columns: 1fr; gap: 0; }
+  .bulk-email-layout { grid-template-columns: 1fr; }
   .quote-line {
     grid-template-columns: 1fr 72px;
   }
