@@ -1,0 +1,8 @@
+{
+  "name": "bargain-prospect-crm",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "read-excel-file": "9.3.5"
+  }
+}
