@@ -406,6 +406,146 @@ function renderQuoteLines() {
   $("#quoteTotal").textContent = formatMoney(total);
 }
 
+function pdfText(value = "") {
+  return String(value)
+    .normalize("NFKD")
+    .replace(/[^\x20-\x7E]/g, "-")
+    .replace(/\\/g, "\\\\")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)");
+}
+
+function shortenPdfText(value, maxLength) {
+  const text = String(value || "");
+  return text.length > maxLength ? `${text.slice(0, maxLength - 3)}...` : text;
+}
+
+function createQuotePdf(prospect, quoteNumber, lines, total) {
+  const pageWidth = 612;
+  const pageHeight = 792;
+  const margin = 48;
+  const pageStreams = [];
+  const commands = [];
+  let y = 0;
+
+  const add = (command) => commands.push(command);
+  const fill = (r, g, b) => add(`${r} ${g} ${b} rg`);
+  const rect = (x, top, width, height, r, g, b) => {
+    fill(r, g, b);
+    add(`${x} ${pageHeight - top - height} ${width} ${height} re f`);
+  };
+  const text = (value, x, top, size = 10, bold = false, r = 0.1, g = 0.11, b = 0.12) => {
+    fill(r, g, b);
+    add(`BT /${bold ? "F2" : "F1"} ${size} Tf ${x} ${pageHeight - top} Td (${pdfText(value)}) Tj ET`);
+  };
+  const finishPage = () => {
+    pageStreams.push(commands.splice(0).join("\n"));
+  };
+  const startPage = (continued = false) => {
+    rect(0, 0, pageWidth, 78, 0.07, 0.07, 0.07);
+    rect(margin, 24, 34, 34, 0.96, 0.77, 0.18);
+    text("BM", margin + 7, 47, 13, true, 0.07, 0.07, 0.07);
+    text("BARGAIN MOULDING", margin + 46, 41, 17, true, 1, 1, 1);
+    text(continued ? `${quoteNumber} - CONTINUED` : "PROFESSIONAL QUOTE", 405, 42, 9, true, 0.96, 0.77, 0.18);
+    y = 108;
+  };
+  const tableHeader = () => {
+    rect(margin, y - 15, pageWidth - margin * 2, 25, 0.94, 0.95, 0.96);
+    text("ITEM", margin + 8, y + 1, 9, true);
+    text("QTY", 398, y + 1, 9, true);
+    text("PRICE", 448, y + 1, 9, true);
+    text("TOTAL", 515, y + 1, 9, true);
+    y += 28;
+  };
+
+  startPage();
+  text("QUOTE FOR", margin, y, 8, true, 0.42, 0.45, 0.48);
+  text(shortenPdfText(prospect.companyName, 48), margin, y + 24, 17, true);
+  text(shortenPdfText(prospect.contactName || "", 55), margin, y + 43, 10);
+  text(shortenPdfText(prospect.email || "", 55), margin, y + 58, 10, false, 0.42, 0.45, 0.48);
+  text(shortenPdfText(prospect.phone || "", 55), margin, y + 73, 10, false, 0.42, 0.45, 0.48);
+  text("QUOTE NUMBER", 405, y, 8, true, 0.42, 0.45, 0.48);
+  text(quoteNumber, 405, y + 22, 13, true);
+  text("DATE", 405, y + 49, 8, true, 0.42, 0.45, 0.48);
+  text(new Intl.DateTimeFormat("en-US").format(new Date()), 405, y + 68, 10, true);
+  y += 118;
+  tableHeader();
+
+  lines.forEach((line, index) => {
+    if (y > 665) {
+      finishPage();
+      startPage(true);
+      tableHeader();
+    }
+    if (index % 2 === 1) rect(margin, y - 14, pageWidth - margin * 2, 34, 0.985, 0.985, 0.985);
+    const itemName = `${line.title}${line.variant ? ` - ${line.variant}` : ""}`;
+    text(shortenPdfText(itemName, 52), margin + 8, y, 9, true);
+    text(shortenPdfText(line.sku ? `SKU: ${line.sku}` : "", 52), margin + 8, y + 13, 7, false, 0.42, 0.45, 0.48);
+    text(String(line.qty), 402, y + 5, 9);
+    text(formatMoney(line.unitPrice), 448, y + 5, 9);
+    text(formatMoney(line.unitPrice * line.qty), 515, y + 5, 9, true);
+    y += 36;
+  });
+
+  if (y > 620) {
+    finishPage();
+    startPage(true);
+  }
+  add(`0.82 0.84 0.86 RG 0.7 w ${margin} ${pageHeight - y + 8} m ${pageWidth - margin} ${pageHeight - y + 8} l S`);
+  y += 22;
+  text("QUOTE TOTAL", 390, y, 10, true);
+  text(formatMoney(total), 490, y, 16, true);
+  y += 48;
+  rect(margin, y - 16, pageWidth - margin * 2, 64, 1, 0.97, 0.84);
+  text("THANK YOU FOR THE OPPORTUNITY", margin + 14, y + 4, 10, true);
+  text("Pricing is valid for 30 days and subject to product availability.", margin + 14, y + 23, 9);
+  text("Reply to your email to approve this quote or request changes.", margin + 14, y + 38, 9);
+  text("bargainmoulding.com", margin, 744, 9, true, 0.42, 0.45, 0.48);
+  text(`Page ${pageStreams.length + 1}`, 510, 744, 9, false, 0.42, 0.45, 0.48);
+  finishPage();
+
+  const objects = [];
+  const addObject = (body) => {
+    objects.push(body);
+    return objects.length;
+  };
+  const catalogId = addObject("");
+  const pagesId = addObject("");
+  const regularFontId = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+  const boldFontId = addObject("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
+  const pageIds = [];
+  pageStreams.forEach((stream) => {
+    const contentId = addObject(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
+    const pageId = addObject(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${regularFontId} 0 R /F2 ${boldFontId} 0 R >> >> /Contents ${contentId} 0 R >>`);
+    pageIds.push(pageId);
+  });
+  objects[catalogId - 1] = `<< /Type /Catalog /Pages ${pagesId} 0 R >>`;
+  objects[pagesId - 1] = `<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pageIds.length} >>`;
+
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  objects.forEach((body, index) => {
+    offsets.push(pdf.length);
+    pdf += `${index + 1} 0 obj\n${body}\nendobj\n`;
+  });
+  const xref = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  offsets.slice(1).forEach((offset) => { pdf += `${String(offset).padStart(10, "0")} 00000 n \n`; });
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root ${catalogId} 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return new Blob([pdf], { type: "application/pdf" });
+}
+
+function downloadQuotePdf(prospect, quoteNumber, lines, total) {
+  const url = URL.createObjectURL(createQuotePdf(prospect, quoteNumber, lines, total));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${quoteNumber}-${String(prospect.companyName || "customer").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "")}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+
 async function saveQuote(emailAfterSave = false) {
   if (!draftQuoteLines.length) {
     alert("Add at least one product.");
@@ -462,7 +602,9 @@ async function saveQuote(emailAfterSave = false) {
   if (emailAfterSave) {
     const itemLines = draftQuoteLines.map((line) => `${line.qty} × ${line.title}${line.variant ? ` — ${line.variant}` : ""} @ ${formatMoney(line.unitPrice)} = ${formatMoney(line.unitPrice * line.qty)}`);
     const subject = `Bargain Moulding Quote ${quoteNumber} — ${p.companyName}`;
-    const body = [`Hi ${p.contactName || p.companyName},`, "", `Here is quote ${quoteNumber} from Bargain Moulding:`, "", ...itemLines, "", `Total: ${formatMoney(total)}`, "", "Please reply to this email with any questions or requested changes.", "", "Bargain Moulding"].join("\n");
+    const body = [`Hi ${p.contactName || p.companyName},`, "", `Please find your Bargain Moulding quote ${quoteNumber} attached.`, "", ...itemLines, "", `Total: ${formatMoney(total)}`, "", "Please reply to this email with any questions or requested changes.", "", "Bargain Moulding"].join("\n");
+    downloadQuotePdf(p, quoteNumber, draftQuoteLines, total);
+    alert("Your branded quote PDF was downloaded. Attach that PDF to the Gmail draft before sending.");
     const gmailUrl = new URL("https://mail.google.com/mail/");
     gmailUrl.searchParams.set("view", "cm");
     gmailUrl.searchParams.set("fs", "1");
