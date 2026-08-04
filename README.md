@@ -53,6 +53,7 @@ The Vercel API routes use Shopify Admin GraphQL API `2026-07` and the client-cre
 SHOPIFY_STORE_DOMAIN=eh1h8t-4b.myshopify.com
 SHOPIFY_CLIENT_ID=from Shopify Dev Dashboard
 SHOPIFY_CLIENT_SECRET=from Shopify Dev Dashboard
+CRM_ACCESS_CODE=create a private code shared only with authorized CRM users
 ```
 
 Endpoints:
@@ -62,6 +63,7 @@ Endpoints:
 - `GET /api/health` confirms deployment and environment configuration.
 
 Never expose Shopify credentials in browser JavaScript or commit them to GitHub.
+Product, pricing, inventory, and Draft Order endpoints require the private CRM access code.
 
 ## Recommended next production step
 
