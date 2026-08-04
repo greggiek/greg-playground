@@ -57,6 +57,20 @@ module.exports = async function handler(req, res) {
       return res.status(201).json({ quote: { ...quote, crm_quote_lines: lines } });
     }
 
+    if (action === "deleteQuote") {
+      if (!data.quoteId) return res.status(400).json({ error: "Quote ID is required." });
+      const deleted = await supabaseRest(`crm_quotes?id=eq.${encodeURIComponent(data.quoteId)}`, {
+        method: "DELETE", headers: { Prefer: "return=representation" },
+      });
+      const quote = deleted?.[0];
+      if (!quote) return res.status(404).json({ error: "Quote not found." });
+      await supabaseRest("crm_activities", {
+        method: "POST",
+        body: JSON.stringify({ prospect_id: quote.prospect_id, activity_type: "quote_deleted", body: `Deleted CRM quote ${quote.quote_number}.`, user_name: data.user || "Greg" }),
+      });
+      return res.status(200).json({ ok: true });
+    }
+
     if (action === "markQuoteConverted") {
       const [quote] = await supabaseRest(`crm_quotes?id=eq.${encodeURIComponent(data.quoteId)}`, { method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify({ status: "converted", shopify_draft_order_id: data.shopifyDraftOrderId, shopify_draft_order_name: data.shopifyDraftOrderName, shopify_invoice_url: data.invoiceUrl }) });
       return res.status(200).json({ quote });
