@@ -6,6 +6,8 @@ let currentProspectId = null;
 let draftQuoteLines = [];
 let productSearchTimer = null;
 let currentUser = null;
+let emailTemplates = [];
+let editingEmailTemplateId = null;
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -95,6 +97,7 @@ function applyProfilePermissions() {
   $("#profileBadge").hidden = false;
   $("#profileBadge").textContent = `${currentUser.name} · ${manager ? "Manager" : "Sales Rep"}`;
   $("#switchUserBtn").hidden = false;
+  $("#bulkEmailBtn").hidden = !manager;
   $("#importProspectsBtn").hidden = !manager;
   $("#exportBtn").hidden = !manager;
   [$("#prospectForm").elements.owner, $("#editForm").elements.owner].forEach((select) => {
@@ -713,6 +716,125 @@ function escapeHtml(value = "") {
     .replaceAll("'", "&#039;");
 }
 
+async function emailTemplateAction(action, data = {}) {
+  const response = await crmFetch("/api/email-templates", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action, data }),
+  });
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.error || "Email template update failed.");
+  return body;
+}
+
+function bulkEmailAudience() {
+  const stage = $("#bulkEmailStage").value;
+  const owner = $("#bulkEmailOwner").value;
+  const seen = new Set();
+  return state.prospects.filter((prospect) => {
+    const email = String(prospect.email || "").trim().toLowerCase();
+    if (!email || seen.has(email) || (stage && prospect.stage !== stage) || (owner && prospect.owner !== owner)) return false;
+    seen.add(email);
+    return true;
+  });
+}
+
+function updateBulkEmailAudience() {
+  const audience = bulkEmailAudience();
+  $("#bulkRecipientSummary").textContent = `${audience.length} recipient${audience.length === 1 ? "" : "s"} with valid email addresses`;
+  $("#bulkRecipientPreview").textContent = audience.length ? audience.map((prospect) => `${prospect.companyName} <${prospect.email}>`).join(" · ") : "No matching customers or prospects have an email address.";
+}
+
+function clearEmailTemplate() {
+  editingEmailTemplateId = null;
+  $("#emailTemplateName").value = "";
+  $("#emailTemplateSubject").value = "";
+  $("#emailTemplateBody").value = "";
+  $("#saveEmailTemplateBtn").textContent = "Save Template";
+}
+
+function renderEmailTemplates() {
+  $("#savedEmailTemplates").innerHTML = emailTemplates.length ? emailTemplates.map((template) => `
+    <article class="saved-template-card">
+      <strong>${escapeHtml(template.name)}</strong>
+      <div class="card-meta">${escapeHtml(template.subject)}</div>
+      <div class="button-row">
+        <button class="btn btn-small btn-secondary" type="button" data-load-email-template="${template.id}">Load</button>
+        <button class="btn btn-small btn-danger" type="button" data-delete-email-template="${template.id}">Delete</button>
+      </div>
+    </article>`).join("") : `<div class="empty">No templates yet.</div>`;
+  document.querySelectorAll("[data-load-email-template]").forEach((button) => button.addEventListener("click", () => {
+    const template = emailTemplates.find((item) => item.id === button.dataset.loadEmailTemplate);
+    if (!template) return;
+    editingEmailTemplateId = template.id;
+    $("#emailTemplateName").value = template.name;
+    $("#emailTemplateSubject").value = template.subject;
+    $("#emailTemplateBody").value = template.body;
+    $("#saveEmailTemplateBtn").textContent = "Update Template";
+  }));
+  document.querySelectorAll("[data-delete-email-template]").forEach((button) => button.addEventListener("click", async () => {
+    const template = emailTemplates.find((item) => item.id === button.dataset.deleteEmailTemplate);
+    if (!template || !confirm(`Delete email template “${template.name}”?`)) return;
+    await emailTemplateAction("delete", { id: template.id });
+    if (editingEmailTemplateId === template.id) clearEmailTemplate();
+    await loadEmailTemplates();
+  }));
+}
+
+async function loadEmailTemplates() {
+  const response = await crmFetch("/api/email-templates");
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.error || "Could not load email templates.");
+  emailTemplates = body.templates || [];
+  renderEmailTemplates();
+}
+
+async function openBulkEmail() {
+  if (!isManager()) return alert("Manager access required.");
+  updateBulkEmailAudience();
+  showView("bulkEmailView");
+  try {
+    await loadEmailTemplates();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function saveEmailTemplate() {
+  const name = $("#emailTemplateName").value.trim();
+  const subject = $("#emailTemplateSubject").value.trim();
+  const body = $("#emailTemplateBody").value.trim();
+  if (!name || !subject || !body) return alert("Add a template name, subject, and message.");
+  const button = $("#saveEmailTemplateBtn");
+  button.disabled = true;
+  try {
+    const result = await emailTemplateAction("save", { id: editingEmailTemplateId, name, subject, body });
+    editingEmailTemplateId = result.template.id;
+    button.textContent = "Update Template";
+    await loadEmailTemplates();
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function prepareBulkEmail() {
+  const audience = bulkEmailAudience();
+  const subject = $("#emailTemplateSubject").value.trim();
+  const body = $("#emailTemplateBody").value.trim();
+  if (!audience.length) return alert("Choose an audience with at least one valid email address.");
+  if (audience.length > 75) return alert("Choose a narrower audience of 75 recipients or fewer for one Gmail draft.");
+  if (!subject || !body) return alert("Add an email subject and message first.");
+  const gmailUrl = new URL("https://mail.google.com/mail/");
+  gmailUrl.searchParams.set("view", "cm");
+  gmailUrl.searchParams.set("fs", "1");
+  gmailUrl.searchParams.set("bcc", audience.map((prospect) => prospect.email.trim()).join(","));
+  gmailUrl.searchParams.set("su", subject);
+  gmailUrl.searchParams.set("body", body);
+  window.location.assign(gmailUrl.toString());
+}
+
 $("#newProspectBtn").addEventListener("click", () => {
   const form = $("#prospectForm");
   form.reset();
@@ -724,6 +846,7 @@ $("#switchUserBtn").addEventListener("click", () => {
   sessionStorage.removeItem("bargainCrmAccessCode");
   window.location.reload();
 });
+$("#bulkEmailBtn").addEventListener("click", openBulkEmail);
 $("#importProspectsBtn").addEventListener("click", () => {
   $("#importForm").reset();
   $("#importForm").elements.owner.value = currentUserName();
@@ -734,6 +857,11 @@ $("#importProspectsBtn").addEventListener("click", () => {
 $("#searchInput").addEventListener("input", renderHome);
 $("#stageFilter").addEventListener("change", renderHome);
 $("#exportBtn").addEventListener("click", exportCsv);
+$("#bulkEmailStage").addEventListener("change", updateBulkEmailAudience);
+$("#bulkEmailOwner").addEventListener("change", updateBulkEmailAudience);
+$("#saveEmailTemplateBtn").addEventListener("click", saveEmailTemplate);
+$("#clearEmailTemplateBtn").addEventListener("click", clearEmailTemplate);
+$("#prepareBulkEmailBtn").addEventListener("click", prepareBulkEmail);
 
 document.querySelectorAll("[data-close-dialog]").forEach((btn) =>
   btn.addEventListener("click", () => $("#prospectDialog").close())
