@@ -1,9 +1,11 @@
 const STORAGE_KEY = "bargainProspectCRM.v1";
 
-let state = loadState();
+let state = { prospects: [] };
+localStorage.removeItem(STORAGE_KEY);
 let currentProspectId = null;
 let draftQuoteLines = [];
 let productSearchTimer = null;
+let currentUser = null;
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -40,6 +42,8 @@ async function refreshCrm(openId) {
   const response = await crmFetch("/api/crm");
   const body = await response.json();
   if (!response.ok) throw new Error(body.error || "Could not load CRM.");
+  currentUser = body.currentUser || currentUser;
+  applyProfilePermissions();
   state = { prospects: (body.prospects || []).map(fromDbProspect) };
   saveState();
   renderHome();
@@ -74,7 +78,29 @@ function normalizeProspect(p) {
 }
 
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  localStorage.removeItem(STORAGE_KEY);
+}
+
+function isManager() {
+  return currentUser?.role === "manager";
+}
+
+function currentUserName() {
+  return currentUser?.name || "Greg";
+}
+
+function applyProfilePermissions() {
+  if (!currentUser) return;
+  const manager = isManager();
+  $("#profileBadge").hidden = false;
+  $("#profileBadge").textContent = `${currentUser.name} · ${manager ? "Manager" : "Sales Rep"}`;
+  $("#switchUserBtn").hidden = false;
+  $("#importProspectsBtn").hidden = !manager;
+  $("#exportBtn").hidden = !manager;
+  [$("#prospectForm").elements.owner, $("#editForm").elements.owner].forEach((select) => {
+    select.disabled = !manager;
+    if (!manager) select.value = currentUser.name;
+  });
 }
 
 function uid(prefix) {
@@ -204,6 +230,7 @@ function renderProspect() {
   const timeline = [...(p.timeline || [])].sort((a, b) => new Date(b.at) - new Date(a.at));
   const quotes = [...(p.quotes || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   const latestQuote = quotes[0];
+  const manager = isManager();
 
   $("#prospectDetail").innerHTML = `
     <div class="prospect-header">
@@ -219,11 +246,7 @@ function renderProspect() {
         </div>
         <div class="owner-control">
           <span class="badge">${p.customerId ? "Customer" : "Prospect"}</span>
-          <label for="accountOwnerSelect">Account Owner</label>
-          <select id="accountOwnerSelect">
-            <option value="Greg" ${p.owner === "Greg" ? "selected" : ""}>Greg</option>
-            <option value="Craig" ${p.owner === "Craig" ? "selected" : ""}>Craig</option>
-          </select>
+          ${manager ? `<label for="accountOwnerSelect">Account Owner</label><select id="accountOwnerSelect"><option value="Greg" ${p.owner === "Greg" ? "selected" : ""}>Greg</option><option value="Craig" ${p.owner === "Craig" ? "selected" : ""}>Craig</option><option value="Rep 1" ${p.owner === "Rep 1" ? "selected" : ""}>Rep 1</option></select>` : `<span class="badge">Owner: ${escapeHtml(p.owner)}</span>`}
         </div>
       </div>
 
@@ -233,7 +256,7 @@ function renderProspect() {
         <button class="btn btn-secondary" id="addNoteBtn">Add Note</button>
         <button class="btn btn-primary" id="buildQuoteBtn">Build Quote</button>
         <button class="btn btn-secondary" id="editProspectBtn">Edit</button>
-        <button class="btn btn-danger" id="deleteProspectBtn">Delete</button>
+        ${manager ? `<button class="btn btn-danger" id="deleteProspectBtn">Delete</button>` : ""}
       </div>
 
       ${reminder ? `
@@ -251,7 +274,7 @@ function renderProspect() {
 
     <div class="section-heading"><h3>Saved Quotes</h3></div>
     <div class="card-list">
-      ${quotes.length ? quotes.map((quote) => `<article class="timeline-item"><div class="timeline-meta">${escapeHtml(quote.number)} · ${escapeHtml(quote.status)} · ${formatMoney(quote.total)}</div><div class="button-row"><button class="btn btn-small btn-secondary" data-reopen-quote="${quote.id}">Reopen</button>${quote.status !== "converted" ? `<button class="btn btn-small btn-primary" data-convert-quote="${quote.id}">Convert to Shopify</button>` : ""}<button class="btn btn-small btn-danger" data-delete-quote="${quote.id}">Delete Quote</button></div></article>`).join("") : `<div class="empty">No saved quotes yet.</div>`}
+      ${quotes.length ? quotes.map((quote) => `<article class="timeline-item"><div class="timeline-meta">${escapeHtml(quote.number)} · ${escapeHtml(quote.status)} · ${formatMoney(quote.total)}</div><div class="button-row"><button class="btn btn-small btn-secondary" data-reopen-quote="${quote.id}">Reopen</button>${manager && quote.status !== "converted" ? `<button class="btn btn-small btn-primary" data-convert-quote="${quote.id}">Convert to Shopify</button>` : ""}${manager ? `<button class="btn btn-small btn-danger" data-delete-quote="${quote.id}">Delete Quote</button>` : ""}</div></article>`).join("") : `<div class="empty">No saved quotes yet.</div>`}
     </div>
 
     <div class="section-heading">
@@ -269,8 +292,8 @@ function renderProspect() {
   $("#addNoteBtn").addEventListener("click", () => $("#noteDialog").showModal());
   $("#buildQuoteBtn").addEventListener("click", startQuote);
   $("#editProspectBtn").addEventListener("click", openEditDialog);
-  $("#deleteProspectBtn").addEventListener("click", deleteCurrentProspect);
-  $("#accountOwnerSelect").addEventListener("change", (event) => updateAccountOwner(event.target.value));
+  if ($("#deleteProspectBtn")) $("#deleteProspectBtn").addEventListener("click", deleteCurrentProspect);
+  if ($("#accountOwnerSelect")) $("#accountOwnerSelect").addEventListener("change", (event) => updateAccountOwner(event.target.value));
 
   if ($("#completeReminderBtn")) {
     $("#completeReminderBtn").addEventListener("click", async () => {
@@ -279,7 +302,7 @@ function renderProspect() {
       p.timeline.push({
         id: uid("activity"),
         at: nowIso(),
-        user: "Greg",
+        user: currentUserName(),
         text: "Completed follow-up reminder."
       });
       saveState();
@@ -311,7 +334,7 @@ async function updateAccountOwner(owner) {
   const select = $("#accountOwnerSelect");
   select.disabled = true;
   try {
-    await crmAction("updateOwner", { id: p.id, owner, oldOwner, user: "Greg" });
+    await crmAction("updateOwner", { id: p.id, owner, oldOwner, user: currentUserName() });
     await refreshCrm(p.id);
   } catch (error) {
     select.value = oldOwner;
@@ -326,6 +349,7 @@ function openEditDialog() {
   ["companyName", "contactName", "phone", "email", "address", "stage", "estimatedValue", "owner"].forEach((name) => {
     form.elements[name].value = p[name] ?? "";
   });
+  form.elements.owner.disabled = !isManager();
   $("#editDialog").showModal();
 }
 
@@ -587,7 +611,7 @@ async function saveQuote(emailAfterSave = false) {
   $("#emailQuoteBtn").disabled = true;
   saveButton.textContent = "Saving in CRM…";
   try {
-    await crmAction("saveQuote", { prospectId: p.id, quoteNumber, lines: draftQuoteLines, createdBy: "Greg" });
+    await crmAction("saveQuote", { prospectId: p.id, quoteNumber, lines: draftQuoteLines, createdBy: currentUserName() });
   } catch (error) {
     alert(`Quote was not saved: ${error.message}`);
     saveButton.disabled = false;
@@ -611,7 +635,7 @@ async function saveQuote(emailAfterSave = false) {
   p.timeline.push({
     id: uid("activity"),
     at: nowIso(),
-    user: "Greg",
+    user: currentUserName(),
     text: `Saved CRM Quote ${quoteNumber} — ${formatMoney(total)}`
   });
 
@@ -655,7 +679,7 @@ async function deleteQuote(quoteId) {
   if (!quote) return;
   const shopifyNote = quote.status === "converted" ? "\n\nThe Shopify draft order will NOT be deleted." : "";
   if (!confirm(`Permanently delete CRM quote ${quote.number}?${shopifyNote}`)) return;
-  await crmAction("deleteQuote", { quoteId, user: "Greg" });
+  await crmAction("deleteQuote", { quoteId, user: currentUserName() });
   await refreshCrm(p.id);
 }
 
@@ -673,7 +697,7 @@ function convertToCustomer() {
   p.timeline.push({
     id: uid("activity"),
     at: nowIso(),
-    user: "Greg",
+    user: currentUserName(),
     text: "Converted prospect to customer."
   });
   saveState();
@@ -689,9 +713,20 @@ function escapeHtml(value = "") {
     .replaceAll("'", "&#039;");
 }
 
-$("#newProspectBtn").addEventListener("click", () => $("#prospectDialog").showModal());
+$("#newProspectBtn").addEventListener("click", () => {
+  const form = $("#prospectForm");
+  form.reset();
+  form.elements.owner.disabled = !isManager();
+  form.elements.owner.value = currentUserName();
+  $("#prospectDialog").showModal();
+});
+$("#switchUserBtn").addEventListener("click", () => {
+  sessionStorage.removeItem("bargainCrmAccessCode");
+  window.location.reload();
+});
 $("#importProspectsBtn").addEventListener("click", () => {
   $("#importForm").reset();
+  $("#importForm").elements.owner.value = currentUserName();
   $("#importStatus").className = "import-status";
   $("#importStatus").textContent = "";
   $("#importDialog").showModal();
@@ -741,15 +776,15 @@ $("#prospectForm").addEventListener("submit", async (event) => {
     address: String(data.get("address") || "").trim(),
     stage: String(data.get("stage") || "New Lead"),
     estimatedValue: Number(data.get("estimatedValue") || 0),
-    owner: String(data.get("owner") || "Greg"),
+    owner: String(data.get("owner") || currentUserName()),
     createdAt,
-    createdBy: "Greg",
+    createdBy: currentUserName(),
     customerId: null,
     timeline: [
       {
         id: uid("activity"),
         at: createdAt,
-        user: "Greg",
+        user: currentUserName(),
         text: "Created prospect."
       }
     ],
@@ -761,7 +796,7 @@ $("#prospectForm").addEventListener("submit", async (event) => {
     prospect.timeline.push({
       id: uid("activity"),
       at: createdAt,
-      user: "Greg",
+      user: currentUserName(),
       text: notes
     });
   }
@@ -777,11 +812,12 @@ $("#editForm").addEventListener("submit", async (event) => {
   const p = prospectById(currentProspectId);
   const data = new FormData(event.currentTarget);
   const oldStage = p.stage;
-  ["companyName", "contactName", "phone", "email", "address", "stage", "owner"].forEach((name) => {
+  ["companyName", "contactName", "phone", "email", "address", "stage"].forEach((name) => {
     p[name] = String(data.get(name) || "").trim();
   });
+  p.owner = isManager() ? String(data.get("owner") || "Greg") : currentUserName();
   p.estimatedValue = Number(data.get("estimatedValue") || 0);
-  await crmAction("updateProspect", { ...p, id: p.id, oldStage, user: "Greg" });
+  await crmAction("updateProspect", { ...p, id: p.id, oldStage, user: currentUserName() });
   $("#editDialog").close();
   await refreshCrm(p.id);
 });
@@ -849,7 +885,7 @@ $("#noteForm").addEventListener("submit", async (event) => {
   p.timeline.push({
     id: uid("activity"),
     at: nowIso(),
-    user: "Greg",
+    user: currentUserName(),
     text: note
   });
 
@@ -872,7 +908,7 @@ $("#noteForm").addEventListener("submit", async (event) => {
     });
   }
 
-  await crmAction("addNote", { prospectId: p.id, note, reminderDate, user: "Greg" });
+  await crmAction("addNote", { prospectId: p.id, note, reminderDate, user: currentUserName() });
   event.currentTarget.reset();
   $("#noteDialog").close();
   await refreshCrm(p.id);
@@ -889,5 +925,5 @@ $("#cancelQuoteBtn").addEventListener("click", () => {
   showView("prospectView");
 });
 
-renderHome();
+$("#prospectList").innerHTML = `<div class="empty">Loading your CRM profile…</div>`;
 refreshCrm().catch((error) => console.warn("Supabase CRM load failed:", error));
