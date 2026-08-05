@@ -1,5 +1,5 @@
 const crypto = require("crypto");
-const { supabaseRest } = require("./_supabase");
+const { gmailSupabaseRest } = require("./_supabase");
 
 function env(name) {
   const value = process.env[name];
@@ -38,7 +38,7 @@ function encryptToken(token) {
 
 async function gmailConnection() {
   const email = encodeURIComponent(env("GMAIL_SENDER_EMAIL").toLowerCase());
-  const rows = await supabaseRest(`crm_gmail_connections?email=eq.${email}&select=email,connected_at,updated_at&limit=1`);
+  const rows = await gmailSupabaseRest(`crm_gmail_connections?email=eq.${email}&select=email,connected_at,updated_at&limit=1`);
   return rows?.[0] || null;
 }
 

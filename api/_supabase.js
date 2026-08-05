@@ -1,8 +1,16 @@
 function env(name) { const value = process.env[name]; if (!value) throw new Error(`Missing ${name}.`); return value; }
 
 async function supabaseRest(path, options = {}) {
-  const key = env("SUPABASE_SECRET_KEY");
-  const response = await fetch(`${env("SUPABASE_URL")}/rest/v1/${path}`, {
+  return supabaseRestWith("SUPABASE_URL", "SUPABASE_SECRET_KEY", path, options);
+}
+
+async function gmailSupabaseRest(path, options = {}) {
+  return supabaseRestWith("GMAIL_SUPABASE_URL", "GMAIL_SUPABASE_SECRET_KEY", path, options);
+}
+
+async function supabaseRestWith(urlName, keyName, path, options = {}) {
+  const key = env(keyName);
+  const response = await fetch(`${env(urlName)}/rest/v1/${path}`, {
     ...options,
     headers: {
       apikey: key,
@@ -17,4 +25,4 @@ async function supabaseRest(path, options = {}) {
   return body;
 }
 
-module.exports = { supabaseRest };
+module.exports = { supabaseRest, gmailSupabaseRest };

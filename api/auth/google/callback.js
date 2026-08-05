@@ -1,4 +1,4 @@
-const { supabaseRest } = require("../../_supabase");
+const { gmailSupabaseRest } = require("../../_supabase");
 const { env, verifyState, encryptToken } = require("../../_google");
 
 function appUrl(req) {
@@ -35,7 +35,7 @@ module.exports = async function handler(req, res) {
     if (!userResponse.ok) throw new Error("Could not verify the connected Google account.");
     const expectedEmail = env("GMAIL_SENDER_EMAIL").toLowerCase();
     if (String(googleUser.email || "").toLowerCase() !== expectedEmail) throw new Error(`Please connect ${expectedEmail}, not ${googleUser.email || "that account"}.`);
-    await supabaseRest("crm_gmail_connections?on_conflict=email", {
+    await gmailSupabaseRest("crm_gmail_connections?on_conflict=email", {
       method: "POST",
       headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
       body: JSON.stringify({
