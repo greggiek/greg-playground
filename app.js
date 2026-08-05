@@ -794,9 +794,31 @@ async function openBulkEmail() {
   updateBulkEmailAudience();
   showView("bulkEmailView");
   try {
-    await loadEmailTemplates();
+    await Promise.all([loadEmailTemplates(), loadGmailConnection()]);
   } catch (error) {
     alert(error.message);
+  }
+}
+
+async function loadGmailConnection() {
+  const response = await crmFetch("/api/gmail");
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.error || "Could not check Gmail connection.");
+  $("#gmailConnectionStatus").textContent = body.connected ? `Connected: ${body.email}` : `Not connected: ${body.email}`;
+  $("#connectGmailBtn").textContent = body.connected ? "Reconnect Gmail" : "Connect Gmail";
+}
+
+async function connectGmail() {
+  const button = $("#connectGmailBtn");
+  button.disabled = true;
+  try {
+    const response = await crmFetch("/api/auth/google/start");
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error || "Could not start Google authorization.");
+    window.location.assign(body.url);
+  } catch (error) {
+    alert(error.message);
+    button.disabled = false;
   }
 }
 
@@ -862,6 +884,16 @@ $("#bulkEmailOwner").addEventListener("change", updateBulkEmailAudience);
 $("#saveEmailTemplateBtn").addEventListener("click", saveEmailTemplate);
 $("#clearEmailTemplateBtn").addEventListener("click", clearEmailTemplate);
 $("#prepareBulkEmailBtn").addEventListener("click", prepareBulkEmail);
+$("#connectGmailBtn").addEventListener("click", connectGmail);
+
+const gmailResult = new URLSearchParams(window.location.search);
+if (gmailResult.get("gmail") === "connected") {
+  alert("Gmail connected successfully.");
+  history.replaceState({}, "", window.location.pathname);
+} else if (gmailResult.get("gmail") === "error") {
+  alert(gmailResult.get("message") || "Gmail connection failed.");
+  history.replaceState({}, "", window.location.pathname);
+}
 
 document.querySelectorAll("[data-close-dialog]").forEach((btn) =>
   btn.addEventListener("click", () => $("#prospectDialog").close())
