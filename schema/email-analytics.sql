@@ -27,3 +27,15 @@ alter table public.crm_email_campaigns enable row level security;
 alter table public.crm_email_unsubscribes enable row level security;
 revoke all on public.crm_email_campaigns, public.crm_email_unsubscribes from anon, authenticated;
 grant select, insert, update, delete on public.crm_email_campaigns, public.crm_email_unsubscribes to service_role;
+
+create table public.crm_users (
+  id uuid primary key default gen_random_uuid(), email text not null unique, name text not null,
+  role text not null default 'sales_rep' check (role in ('manager','sales_rep')),
+  access_code_hash text not null unique, active boolean not null default true,
+  created_at timestamptz not null default now(), updated_at timestamptz not null default now()
+);
+alter table public.crm_users enable row level security;
+revoke all on public.crm_users from anon, authenticated;
+grant select, insert, update, delete on public.crm_users to service_role;
+alter table public.crm_email_messages add column sender_email text not null;
+alter table public.crm_email_campaigns add column sender_email text not null;

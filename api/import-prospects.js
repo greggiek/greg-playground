@@ -93,8 +93,8 @@ function duplicateKeys(record) {
 }
 
 module.exports = async function handler(req, res) {
-  if (!requireCrmAccess(req, res)) return;
-  if (!requireManager(req, res)) return;
+  if (!(await requireCrmAccess(req, res))) return;
+  if (!(await requireManager(req, res))) return;
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
   try {
     const { fileName = "", fileBase64 = "", recordType = "prospect", owner = "Greg" } = req.body || {};

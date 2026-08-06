@@ -3,11 +3,12 @@ const { gmailSupabaseRest } = require("../lib/supabase");
 
 module.exports = async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed." });
-  if (!requireManager(req, res)) return;
+  if (!(await requireManager(req, res))) return;
   try {
+    const senderEmail = encodeURIComponent(req.crmUser.email.toLowerCase());
     const [messages, campaigns, unsubscribes] = await Promise.all([
-      gmailSupabaseRest("crm_email_messages?select=id,campaign_id,recipient_email,recipient_name,subject,status,sent_at,first_opened_at,first_clicked_at,created_at&order=created_at.desc&limit=500"),
-      gmailSupabaseRest("crm_email_campaigns?select=id,name,subject,status,total_recipients,created_at,completed_at&order=created_at.desc&limit=50"),
+      gmailSupabaseRest(`crm_email_messages?sender_email=eq.${senderEmail}&select=id,campaign_id,recipient_email,recipient_name,subject,status,sent_at,first_opened_at,first_clicked_at,created_at&order=created_at.desc&limit=500`),
+      gmailSupabaseRest(`crm_email_campaigns?sender_email=eq.${senderEmail}&select=id,name,subject,status,total_recipients,created_at,completed_at&order=created_at.desc&limit=50`),
       gmailSupabaseRest("crm_email_unsubscribes?select=email,unsubscribed_at&order=unsubscribed_at.desc&limit=500"),
     ]);
     const sent = messages.filter((m) => m.status === "sent");

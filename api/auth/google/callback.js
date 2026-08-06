@@ -12,7 +12,7 @@ module.exports = async function handler(req, res) {
   const destination = new URL(appUrl(req));
   try {
     if (req.query.error) throw new Error(`Google authorization was cancelled: ${req.query.error}`);
-    verifyState(req.query.state);
+    const state = verifyState(req.query.state);
     if (!req.query.code) throw new Error("Google did not return an authorization code.");
     const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
@@ -33,7 +33,8 @@ module.exports = async function handler(req, res) {
     });
     const googleUser = await userResponse.json();
     if (!userResponse.ok) throw new Error("Could not verify the connected Google account.");
-    const expectedEmail = env("GMAIL_SENDER_EMAIL").toLowerCase();
+    const expectedEmail = String(state.email || "").toLowerCase();
+    if (!expectedEmail) throw new Error("CRM user email is missing. Sign in and try again.");
     if (String(googleUser.email || "").toLowerCase() !== expectedEmail) throw new Error(`Please connect ${expectedEmail}, not ${googleUser.email || "that account"}.`);
     await gmailSupabaseRest("crm_gmail_connections?on_conflict=email", {
       method: "POST",

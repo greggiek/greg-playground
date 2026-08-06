@@ -23,7 +23,7 @@ async function requireProspectAccess(user, prospectId, res) {
 }
 
 module.exports = async function handler(req, res) {
-  const user = requireCrmAccess(req, res);
+  const user = await requireCrmAccess(req, res);
   if (!user) return;
   try {
     if (req.method === "GET") {
@@ -55,7 +55,7 @@ module.exports = async function handler(req, res) {
     }
 
     if (action === "updateOwner") {
-      if (!requireManager(req, res)) return;
+      if (!(await requireManager(req, res))) return;
       if (!data.id || !OWNERS.has(data.owner)) return res.status(400).json({ error: "Choose Greg, Craig, or Rep 1 as the account owner." });
       const [prospect] = await supabaseRest(`crm_prospects?id=eq.${encodeURIComponent(data.id)}`, { method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify({ owner_name: data.owner }) });
       if (!prospect) return res.status(404).json({ error: "Prospect not found." });
@@ -78,7 +78,7 @@ module.exports = async function handler(req, res) {
     }
 
     if (action === "deleteProspect") {
-      if (!requireManager(req, res)) return;
+      if (!(await requireManager(req, res))) return;
       if (!data.id) return res.status(400).json({ error: "Prospect ID is required." });
       await supabaseRest(`crm_prospects?id=eq.${encodeURIComponent(data.id)}`, { method: "DELETE" });
       return res.status(200).json({ ok: true });
@@ -98,7 +98,7 @@ module.exports = async function handler(req, res) {
     }
 
     if (action === "deleteQuote") {
-      if (!requireManager(req, res)) return;
+      if (!(await requireManager(req, res))) return;
       if (!data.quoteId) return res.status(400).json({ error: "Quote ID is required." });
       const deleted = await supabaseRest(`crm_quotes?id=eq.${encodeURIComponent(data.quoteId)}`, { method: "DELETE", headers: { Prefer: "return=representation" } });
       const quote = deleted?.[0];
@@ -108,7 +108,7 @@ module.exports = async function handler(req, res) {
     }
 
     if (action === "markQuoteConverted") {
-      if (!requireManager(req, res)) return;
+      if (!(await requireManager(req, res))) return;
       const [quote] = await supabaseRest(`crm_quotes?id=eq.${encodeURIComponent(data.quoteId)}`, { method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify({ status: "converted", shopify_draft_order_id: data.shopifyDraftOrderId, shopify_draft_order_name: data.shopifyDraftOrderName, shopify_invoice_url: data.invoiceUrl }) });
       return res.status(200).json({ quote });
     }
