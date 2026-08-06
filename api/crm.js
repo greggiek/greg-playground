@@ -22,6 +22,18 @@ async function requireProspectAccess(user, prospectId, res) {
   return false;
 }
 
+async function getTask(id) {
+  const rows = await supabaseRest(`crm_tasks?id=eq.${encodeURIComponent(id || "")}&select=id,assigned_to&limit=1`);
+  return rows?.[0] || null;
+}
+
+async function requireTaskAccess(user, taskId, res) {
+  const task = await getTask(taskId);
+  if (task && (isManager(user) || task.assigned_to === user.name)) return task;
+  res.status(403).json({ error: "You do not have access to this task." });
+  return false;
+}
+
 module.exports = async function handler(req, res) {
   const user = await requireCrmAccess(req, res);
   if (!user) return;
@@ -30,10 +42,36 @@ module.exports = async function handler(req, res) {
       const select = encodeURIComponent("*,crm_activities(*),crm_reminders(*),crm_quotes(*,crm_quote_lines(*))");
       const ownerFilter = isManager(user) ? "" : `owner_name=eq.${encodeURIComponent(user.name)}&`;
       const prospects = await supabaseRest(`crm_prospects?${ownerFilter}select=${select}&order=created_at.desc`);
-      return res.status(200).json({ prospects, currentUser: user });
+      const taskFilter = isManager(user) ? "" : `assigned_to=eq.${encodeURIComponent(user.name)}&`;
+      const tasks = await supabaseRest(`crm_tasks?${taskFilter}select=*&order=due_date.asc,created_at.asc`);
+      return res.status(200).json({ prospects, tasks, currentUser: user });
     }
     if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
     const { action, data = {} } = req.body || {};
+
+    if (action === "createTask") {
+      const title = String(data.title || "").trim();
+      if (!title || !/^\d{4}-\d{2}-\d{2}$/.test(String(data.dueDate || ""))) return res.status(400).json({ error: "Task title and due date are required." });
+      const assignedTo = isManager(user) ? validOwner(data.assignedTo) : user.name;
+      if (data.prospectId && !await canAccessProspect(user, data.prospectId)) return res.status(403).json({ error: "You do not have access to that contact." });
+      const allowedTypes = new Set(["follow_up", "call", "email", "quote", "admin"]);
+      const allowedPriorities = new Set(["low", "normal", "high"]);
+      const [task] = await supabaseRest("crm_tasks", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify({ title, notes: String(data.notes || "").trim(), task_type: allowedTypes.has(data.taskType) ? data.taskType : "follow_up", priority: allowedPriorities.has(data.priority) ? data.priority : "normal", due_date: data.dueDate, assigned_to: assignedTo, prospect_id: data.prospectId || null, created_by: user.name }) });
+      return res.status(201).json({ task });
+    }
+
+    if (action === "setTaskStatus") {
+      if (!await requireTaskAccess(user, data.id, res)) return;
+      const completed = data.status === "completed";
+      const [task] = await supabaseRest(`crm_tasks?id=eq.${encodeURIComponent(data.id)}`, { method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify({ status: completed ? "completed" : "open", completed_at: completed ? new Date().toISOString() : null }) });
+      return res.status(200).json({ task });
+    }
+
+    if (action === "deleteTask") {
+      if (!await requireTaskAccess(user, data.id, res)) return;
+      await supabaseRest(`crm_tasks?id=eq.${encodeURIComponent(data.id)}`, { method: "DELETE" });
+      return res.status(200).json({ ok: true });
+    }
 
     if (action === "createProspect") {
       const owner = isManager(user) ? validOwner(data.owner) : user.name;
