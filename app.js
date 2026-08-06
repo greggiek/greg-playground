@@ -99,6 +99,7 @@ function applyProfilePermissions() {
   $("#profileBadge").hidden = false;
   $("#profileBadge").textContent = `${currentUser.name} · ${manager ? "Manager" : "Sales Rep"}`;
   $("#switchUserBtn").hidden = false;
+  $("#campaignsBtn").hidden = !manager;
   $("#bulkEmailBtn").hidden = !manager;
   $("#importProspectsBtn").hidden = !manager;
   $("#exportBtn").hidden = !manager;
@@ -864,6 +865,32 @@ async function loadEmailAnalytics() {
   const summary = body.summary || { sent: 0, opened: 0, clicked: 0, unsubscribed: 0 };
   const campaigns = (body.campaigns || []).slice(0, 10);
   $("#emailAnalytics").innerHTML = `<div class="recipient-summary">${summary.sent} sent · ${summary.opened} opened · ${summary.clicked} clicked · ${summary.unsubscribed || 0} unsubscribed</div>${campaigns.length ? campaigns.map((campaign) => `<article class="saved-template-card"><strong>${escapeHtml(campaign.name)}</strong><div class="card-meta">${escapeHtml(campaign.subject)} · ${escapeHtml(campaign.status)}</div><div class="card-meta">${campaign.sent} sent · ${campaign.failed} failed · ${campaign.opened} opened · ${campaign.clicked} clicked</div></article>`).join("") : `<div class="empty">No campaigns yet.</div>`}`;
+  renderCampaignDashboard(summary, body.campaigns || []);
+  return body;
+}
+
+function campaignRate(value, sent) {
+  return sent ? Math.round((Number(value || 0) / sent) * 100) : 0;
+}
+
+function renderCampaignDashboard(summary, campaigns) {
+  $("#campaignSentTotal").textContent = Number(summary.sent || 0).toLocaleString();
+  $("#campaignOpenRate").textContent = `${campaignRate(summary.opened, summary.sent)}%`;
+  $("#campaignClickRate").textContent = `${campaignRate(summary.clicked, summary.sent)}%`;
+  $("#campaignOpenedTotal").textContent = `${Number(summary.opened || 0).toLocaleString()} opens`;
+  $("#campaignClickedTotal").textContent = `${Number(summary.clicked || 0).toLocaleString()} clicks`;
+  $("#campaignUnsubscribedTotal").textContent = Number(summary.unsubscribed || 0).toLocaleString();
+  $("#campaignDashboardStatus").textContent = `${campaigns.length} campaign${campaigns.length === 1 ? "" : "s"} for ${currentUserName()}`;
+  $("#campaignDashboardBody").innerHTML = campaigns.length ? campaigns.map((campaign) => `
+    <tr><td><strong>${escapeHtml(campaign.name)}</strong><div class="card-meta">${escapeHtml(campaign.subject)}</div></td>
+    <td><span class="badge">${escapeHtml(String(campaign.status || "").replaceAll("_", " "))}</span></td><td>${campaign.sent}</td><td>${campaign.failed}</td><td>${campaign.opened}</td><td><strong>${campaignRate(campaign.opened, campaign.sent)}%</strong></td><td>${campaign.clicked}</td><td><strong>${campaignRate(campaign.clicked, campaign.sent)}%</strong></td><td>${campaign.completed_at ? formatDateTime(campaign.completed_at) : "In progress"}</td></tr>`).join("") : `<tr><td colspan="9"><div class="empty">No campaigns yet. Create your first campaign to start tracking performance.</div></td></tr>`;
+}
+
+async function openCampaignDashboard() {
+  if (!isManager()) return alert("Manager access required.");
+  showView("campaignsView");
+  $("#campaignDashboardStatus").textContent = "Loading campaign results…";
+  try { await loadEmailAnalytics(); } catch (error) { $("#campaignDashboardStatus").textContent = error.message; }
 }
 
 async function sendTrackedEmail() {
@@ -956,6 +983,9 @@ $("#switchUserBtn").addEventListener("click", () => {
   window.location.reload();
 });
 $("#contactsBtn").addEventListener("click", openContacts);
+$("#campaignsBtn").addEventListener("click", openCampaignDashboard);
+$("#refreshCampaignsBtn").addEventListener("click", openCampaignDashboard);
+$("#newCampaignBtn").addEventListener("click", openBulkEmail);
 $("#contactsNewBtn").addEventListener("click", () => $("#newProspectBtn").click());
 $("#contactsSearch").addEventListener("input", () => { contactsPage = 1; renderContacts(); });
 $("#contactsStage").addEventListener("change", () => { contactsPage = 1; renderContacts(); });
