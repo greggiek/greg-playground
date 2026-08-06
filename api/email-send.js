@@ -1,7 +1,7 @@
 const crypto = require("crypto");
-const { requireManager } = require("./_auth");
-const { gmailSupabaseRest } = require("./_supabase");
-const { env, gmailAccessToken } = require("./_google");
+const { requireManager } = require("../lib/auth");
+const { gmailSupabaseRest } = require("../lib/supabase");
+const { env, gmailAccessToken } = require("../lib/google");
 
 function escapeHtml(value = "") {
   return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");

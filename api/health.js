@@ -1,4 +1,4 @@
-const { gmailSupabaseRest } = require("./_supabase");
+const { gmailSupabaseRest } = require("../lib/supabase");
 
 module.exports = async function handler(req, res) {
   let supabaseProject = null;

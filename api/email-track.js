@@ -1,4 +1,4 @@
-const { gmailSupabaseRest } = require("./_supabase");
+const { gmailSupabaseRest } = require("../lib/supabase");
 
 const pixel = Buffer.from("R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=", "base64");
 

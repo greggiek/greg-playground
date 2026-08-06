@@ -1,5 +1,5 @@
-const { requireManager } = require("./_auth");
-const { gmailConnection, env } = require("./_google");
+const { requireManager } = require("../lib/auth");
+const { gmailConnection, env } = require("../lib/google");
 
 module.exports = async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed." });

@@ -1,5 +1,5 @@
-const { requireCrmAccess, requireManager } = require("./_auth");
-const { supabaseRest } = require("./_supabase");
+const { requireCrmAccess, requireManager } = require("../lib/auth");
+const { supabaseRest } = require("../lib/supabase");
 
 const OWNERS = new Set(["Greg", "Craig", "Rep 1"]);
 function validOwner(value) { return OWNERS.has(value) ? value : "Greg"; }

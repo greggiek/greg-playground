@@ -1,5 +1,5 @@
-const { requireCrmAccess, requireManager } = require("./_auth");
-const { supabaseRest } = require("./_supabase");
+const { requireCrmAccess, requireManager } = require("../lib/auth");
+const { supabaseRest } = require("../lib/supabase");
 
 module.exports = async function handler(req, res) {
   const user = requireCrmAccess(req, res);
