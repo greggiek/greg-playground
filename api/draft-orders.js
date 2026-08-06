@@ -1,5 +1,5 @@
-const { shopifyGraphql } = require("./_shopify");
-const { requireCrmAccess, requireManager } = require("./_auth");
+const { shopifyGraphql } = require("../lib/shopify");
+const { requireCrmAccess, requireManager } = require("../lib/auth");
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
