@@ -10,6 +10,7 @@ let emailTemplates = [];
 let editingEmailTemplateId = null;
 let contactsPage = 1;
 let contactsMineOnly = false;
+let homeEmailMessages = [];
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -51,6 +52,7 @@ async function refreshCrm(openId) {
   state = { prospects: (body.prospects || []).map(fromDbProspect) };
   saveState();
   renderHome();
+  if (isManager()) loadHomeEmailActivity();
   if (openId) openProspect(openId);
 }
 
@@ -165,6 +167,9 @@ function latestReminder(prospect) {
 }
 
 function renderHome() {
+  const hour = new Date().getHours();
+  $("#dashboardGreeting").textContent = `Good ${hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening"}, ${currentUserName()}`;
+  $("#dashboardDate").textContent = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }).format(new Date());
   const search = ($("#searchInput").value || "").trim().toLowerCase();
   const stage = $("#stageFilter").value;
   const prospects = [...state.prospects]
@@ -186,6 +191,7 @@ function renderHome() {
   $("#activeCount").textContent = openProspects.length;
   $("#quoteCount").textContent = state.prospects.reduce((sum, p) => sum + (p.quotes || []).length, 0);
   $("#wonCount").textContent = state.prospects.filter((p) => p.stage === "Won" || p.customerId).length;
+  renderHomeActivity();
 
   $("#followUpList").innerHTML = followUps.length
     ? followUps.map(({ prospect, reminder }) => `
@@ -216,6 +222,37 @@ function renderHome() {
   document.querySelectorAll("[data-open-prospect]").forEach((el) => {
     el.addEventListener("click", () => openProspect(el.dataset.openProspect));
   });
+}
+
+async function loadHomeEmailActivity() {
+  try {
+    const response = await crmFetch("/api/email-analytics");
+    const body = await response.json();
+    if (!response.ok) return;
+    homeEmailMessages = body.messages || [];
+    renderHomeActivity();
+  } catch (_) {}
+}
+
+function renderHomeActivity() {
+  const filter = $("#activityTypeFilter").value;
+  const events = [];
+  state.prospects.forEach((prospect) => {
+    events.push({ type: "contact", at: prospect.createdAt, title: `${prospect.contactName || prospect.companyName} was added`, detail: prospect.companyName, prospectId: prospect.id });
+    (prospect.timeline || []).filter((item) => !/^created prospect\.?$/i.test(item.text || "")).forEach((item) => events.push({ type: "note", at: item.at, title: `${item.user || "A user"} logged activity`, detail: `${prospect.companyName}: ${item.text}`, prospectId: prospect.id }));
+    (prospect.quotes || []).forEach((quote) => events.push({ type: "quote", at: quote.createdAt, title: `${quote.number || "A quote"} was created`, detail: `${prospect.companyName} · ${formatMoney(quote.total)}`, prospectId: prospect.id }));
+  });
+  homeEmailMessages.forEach((message) => {
+    const person = message.recipient_name || message.recipient_email;
+    const matchingProspect = state.prospects.find((prospect) => String(prospect.email || "").toLowerCase() === String(message.recipient_email || "").toLowerCase());
+    if (message.sent_at) events.push({ type: "email_sent", at: message.sent_at, title: `Email sent to ${person}`, detail: message.subject, prospectId: matchingProspect?.id });
+    if (message.first_opened_at) events.push({ type: "email_open", at: message.first_opened_at, title: `${person} opened an email`, detail: message.subject, prospectId: matchingProspect?.id });
+    if (message.first_clicked_at) events.push({ type: "email_click", at: message.first_clicked_at, title: `${person} clicked an email link`, detail: message.subject, prospectId: matchingProspect?.id });
+  });
+  const visible = events.filter((event) => event.at && (!filter || event.type === filter)).sort((a, b) => new Date(b.at) - new Date(a.at)).slice(0, 50);
+  const labels = { contact: "Contact", note: "Note", quote: "Quote", email_sent: "Sent", email_open: "Open", email_click: "Click" };
+  $("#activityFeed").innerHTML = visible.length ? visible.map((event) => `<button class="activity-item" type="button"${event.prospectId ? ` data-activity-prospect="${event.prospectId}"` : ""}><span class="activity-icon activity-${event.type}">${labels[event.type].slice(0, 1)}</span><span class="activity-copy"><strong>${escapeHtml(event.title)}</strong><small>${escapeHtml(event.detail || "")}</small></span><span class="activity-meta"><span class="badge">${labels[event.type]}</span><time>${formatDateTime(event.at)}</time></span></button>`).join("") : `<div class="empty">No activity matches this view yet.</div>`;
+  document.querySelectorAll("[data-activity-prospect]").forEach((item) => item.addEventListener("click", () => openProspect(item.dataset.activityProspect)));
 }
 
 function contactLastActivity(prospect) {
@@ -864,6 +901,8 @@ async function loadEmailAnalytics() {
   if (!response.ok) throw new Error(body.error || "Could not load email results.");
   const summary = body.summary || { sent: 0, opened: 0, clicked: 0, unsubscribed: 0 };
   const campaigns = (body.campaigns || []).slice(0, 10);
+  homeEmailMessages = body.messages || homeEmailMessages;
+  renderHomeActivity();
   $("#emailAnalytics").innerHTML = `<div class="recipient-summary">${summary.sent} sent · ${summary.opened} opened · ${summary.clicked} clicked · ${summary.unsubscribed || 0} unsubscribed</div>${campaigns.length ? campaigns.map((campaign) => `<article class="saved-template-card"><strong>${escapeHtml(campaign.name)}</strong><div class="card-meta">${escapeHtml(campaign.subject)} · ${escapeHtml(campaign.status)}</div><div class="card-meta">${campaign.sent} sent · ${campaign.failed} failed · ${campaign.opened} opened · ${campaign.clicked} clicked</div></article>`).join("") : `<div class="empty">No campaigns yet.</div>`}`;
   renderCampaignDashboard(summary, body.campaigns || []);
   return body;
@@ -983,6 +1022,7 @@ $("#switchUserBtn").addEventListener("click", () => {
   window.location.reload();
 });
 $("#contactsBtn").addEventListener("click", openContacts);
+$("#activityTypeFilter").addEventListener("change", renderHomeActivity);
 $("#campaignsBtn").addEventListener("click", openCampaignDashboard);
 $("#refreshCampaignsBtn").addEventListener("click", openCampaignDashboard);
 $("#newCampaignBtn").addEventListener("click", openBulkEmail);
