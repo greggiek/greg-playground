@@ -17,6 +17,7 @@
         <span id="profileBadge" class="profile-badge" hidden></span>
         <button id="switchUserBtn" class="btn btn-secondary" type="button" hidden>Switch User</button>
         <button id="contactsBtn" class="btn btn-secondary" type="button">Contacts</button>
+        <button id="campaignsBtn" class="btn btn-secondary" type="button" hidden>Campaigns</button>
         <button id="bulkEmailBtn" class="btn btn-secondary" type="button" hidden>Bulk Email</button>
         <button id="importProspectsBtn" class="btn btn-secondary" hidden>Import</button>
         <button id="newProspectBtn" class="btn btn-primary">+ New Prospect</button>
@@ -61,6 +62,21 @@
           </div>
           <div id="prospectList" class="card-list"></div>
         </section>
+      </section>
+
+      <section id="campaignsView" class="view">
+        <button class="back-link" data-back>← Dashboard</button>
+        <div class="campaign-dashboard-heading"><div><p class="eyebrow">EMAIL PERFORMANCE</p><h2>Campaign Dashboard</h2><p id="campaignDashboardStatus" class="status-text">Loading campaign results…</p></div><div class="button-row"><button id="refreshCampaignsBtn" class="btn btn-secondary" type="button">Refresh</button><button id="newCampaignBtn" class="btn btn-primary" type="button">+ New Campaign</button></div></div>
+        <div class="stats-grid campaign-stats">
+          <article class="stat-card"><span>Emails Sent</span><strong id="campaignSentTotal">0</strong></article>
+          <article class="stat-card"><span>Open Rate</span><strong id="campaignOpenRate">0%</strong><small id="campaignOpenedTotal">0 opens</small></article>
+          <article class="stat-card"><span>Click Rate</span><strong id="campaignClickRate">0%</strong><small id="campaignClickedTotal">0 clicks</small></article>
+          <article class="stat-card"><span>Unsubscribed</span><strong id="campaignUnsubscribedTotal">0</strong></article>
+        </div>
+        <div class="page-card campaign-performance-card">
+          <div class="section-heading"><div><p class="eyebrow">CAMPAIGN BREAKDOWN</p><h3>Performance</h3></div></div>
+          <div class="contacts-table-wrap"><table class="contacts-table campaign-table"><thead><tr><th>Campaign</th><th>Status</th><th>Sent</th><th>Failed</th><th>Opened</th><th>Open rate</th><th>Clicked</th><th>Click rate</th><th>Completed</th></tr></thead><tbody id="campaignDashboardBody"></tbody></table></div>
+        </div>
       </section>
 
       <section id="contactsView" class="view">

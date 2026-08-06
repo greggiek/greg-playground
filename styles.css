@@ -289,6 +289,14 @@ dialog label { display: grid; gap: 7px; margin-top: 14px; font-weight: 800; }
 .contacts-pagination { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; color: var(--muted); font-size: .85rem; }
 .contacts-pagination div { display: flex; gap: 8px; }
 .contacts-pagination button:disabled { opacity: .45; cursor: default; }
+.campaign-dashboard-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
+.campaign-dashboard-heading .button-row { margin-top: 0; }
+.campaign-stats .stat-card { min-height: 116px; }
+.campaign-stats small { display: block; margin-top: 7px; color: var(--muted); font-weight: 750; }
+.campaign-performance-card { padding: 0; overflow: hidden; }
+.campaign-performance-card .section-heading { padding: 20px 20px 8px; }
+.campaign-table { min-width: 980px; }
+.campaign-table td:first-child { min-width: 210px; white-space: normal; }
 
 .badge {
   display: inline-flex;
@@ -311,6 +319,7 @@ dialog label { display: grid; gap: 7px; margin-top: 14px; font-weight: 800; }
   .form-grid { grid-template-columns: 1fr; gap: 0; }
   .bulk-email-layout { grid-template-columns: 1fr; }
   .contacts-heading { align-items: flex-start; }
+  .campaign-dashboard-heading { align-items: flex-start; flex-direction: column; }
   .contacts-filters { grid-template-columns: 1fr; }
   .quote-line {
     grid-template-columns: 1fr 72px;
