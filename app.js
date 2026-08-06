@@ -8,6 +8,8 @@ let productSearchTimer = null;
 let currentUser = null;
 let emailTemplates = [];
 let editingEmailTemplateId = null;
+let contactsPage = 1;
+let contactsMineOnly = false;
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -213,6 +215,61 @@ function renderHome() {
   document.querySelectorAll("[data-open-prospect]").forEach((el) => {
     el.addEventListener("click", () => openProspect(el.dataset.openProspect));
   });
+}
+
+function contactLastActivity(prospect) {
+  const activityDates = (prospect.timeline || []).map((item) => item.at).filter(Boolean);
+  return activityDates.sort((a, b) => new Date(b) - new Date(a))[0] || prospect.createdAt;
+}
+
+function renderContacts() {
+  const search = $("#contactsSearch").value.trim().toLowerCase();
+  const stage = $("#contactsStage").value;
+  const selectedOwner = $("#contactsOwner").value;
+  const owners = [...new Set(state.prospects.map((p) => p.owner).filter(Boolean))].sort();
+  const ownerValue = selectedOwner;
+  $("#contactsOwner").innerHTML = `<option value="">All owners</option>${owners.map((owner) => `<option${owner === ownerValue ? " selected" : ""}>${escapeHtml(owner)}</option>`).join("")}`;
+
+  const [sortField, sortDirection] = $("#contactsSort").value.split(":");
+  const direction = sortDirection === "asc" ? 1 : -1;
+  const rows = state.prospects.filter((p) => {
+    const haystack = [p.contactName, p.companyName, p.email, p.phone, p.address, p.owner, p.stage].join(" ").toLowerCase();
+    return (!search || haystack.includes(search)) && (!stage || p.stage === stage) && (!ownerValue || p.owner === ownerValue) && (!contactsMineOnly || p.owner === currentUserName());
+  }).sort((a, b) => {
+    let left = sortField === "lastActivity" ? contactLastActivity(a) : a[sortField];
+    let right = sortField === "lastActivity" ? contactLastActivity(b) : b[sortField];
+    if (["createdAt", "lastActivity"].includes(sortField)) return (new Date(left || 0) - new Date(right || 0)) * direction;
+    if (sortField === "estimatedValue") return (Number(left || 0) - Number(right || 0)) * direction;
+    return String(left || "").localeCompare(String(right || ""), undefined, { sensitivity: "base" }) * direction;
+  });
+
+  const pageSize = 25;
+  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+  contactsPage = Math.min(contactsPage, pageCount);
+  const start = (contactsPage - 1) * pageSize;
+  const pageRows = rows.slice(start, start + pageSize);
+  $("#contactsCount").textContent = `${rows.length.toLocaleString()} contact${rows.length === 1 ? "" : "s"}`;
+  $("#contactsRange").textContent = rows.length ? `${start + 1}–${Math.min(start + pageSize, rows.length)} of ${rows.length}` : "0 contacts";
+  $("#contactsPrev").disabled = contactsPage === 1;
+  $("#contactsNext").disabled = contactsPage === pageCount;
+  $("#contactsTableBody").innerHTML = pageRows.length ? pageRows.map((p) => `
+    <tr data-contact-id="${p.id}" tabindex="0">
+      <td><strong>${escapeHtml(p.contactName || "No contact name")}</strong></td><td>${escapeHtml(p.companyName)}</td>
+      <td><span class="badge ${stageClass(p.stage)}">${escapeHtml(p.stage)}</span></td><td>${escapeHtml(p.owner)}</td>
+      <td>${escapeHtml(p.email || "—")}</td><td>${escapeHtml(p.phone || "—")}</td><td>${formatMoney(p.estimatedValue)}</td>
+      <td>${contactLastActivity(p) ? formatDateTime(contactLastActivity(p)) : "—"}</td><td>${p.createdAt ? formatDateTime(p.createdAt) : "—"}</td>
+    </tr>`).join("") : `<tr><td colspan="9"><div class="empty">No contacts match these filters.</div></td></tr>`;
+  document.querySelectorAll("[data-contact-id]").forEach((row) => {
+    const open = () => openProspect(row.dataset.contactId);
+    row.addEventListener("click", open);
+    row.addEventListener("keydown", (event) => { if (event.key === "Enter") open(); });
+  });
+}
+
+function openContacts() {
+  contactsPage = 1;
+  renderContacts();
+  showView("contactsView");
 }
 
 function stageClass(stage) {
@@ -898,6 +955,31 @@ $("#switchUserBtn").addEventListener("click", () => {
   sessionStorage.removeItem("bargainCrmAccessCode");
   window.location.reload();
 });
+$("#contactsBtn").addEventListener("click", openContacts);
+$("#contactsNewBtn").addEventListener("click", () => $("#newProspectBtn").click());
+$("#contactsSearch").addEventListener("input", () => { contactsPage = 1; renderContacts(); });
+$("#contactsStage").addEventListener("change", () => { contactsPage = 1; renderContacts(); });
+$("#contactsOwner").addEventListener("change", () => { contactsPage = 1; renderContacts(); });
+$("#contactsSort").addEventListener("change", () => { contactsPage = 1; renderContacts(); });
+$("#contactsClearFilters").addEventListener("click", () => {
+  $("#contactsSearch").value = ""; $("#contactsStage").value = ""; $("#contactsOwner").value = ""; $("#contactsSort").value = "lastActivity:desc"; contactsMineOnly = false; contactsPage = 1; $("#allContactsTab").classList.add("active"); $("#myContactsTab").classList.remove("active"); renderContacts();
+});
+$("#myContactsTab").addEventListener("click", (event) => {
+  contactsMineOnly = true;
+  event.currentTarget.classList.add("active");
+  $("#allContactsTab").classList.remove("active");
+  contactsPage = 1;
+  renderContacts();
+});
+$("#allContactsTab").addEventListener("click", (event) => {
+  contactsMineOnly = false;
+  event.currentTarget.classList.add("active");
+  $("#myContactsTab").classList.remove("active");
+  contactsPage = 1;
+  renderContacts();
+});
+$("#contactsPrev").addEventListener("click", () => { contactsPage = Math.max(1, contactsPage - 1); renderContacts(); });
+$("#contactsNext").addEventListener("click", () => { contactsPage += 1; renderContacts(); });
 $("#bulkEmailBtn").addEventListener("click", openBulkEmail);
 $("#importProspectsBtn").addEventListener("click", () => {
   $("#importForm").reset();
