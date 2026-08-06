@@ -860,6 +860,17 @@ function escapeHtml(value = "") {
     .replaceAll("'", "&#039;");
 }
 
+function showToast(title, message = "", tone = "success") {
+  const region = $("#toastRegion");
+  const toast = document.createElement("div");
+  toast.className = `app-toast toast-${tone}`;
+  toast.innerHTML = `<span class="toast-icon">${tone === "success" ? "✓" : tone === "warning" ? "!" : "i"}</span><div><strong>${escapeHtml(title)}</strong>${message ? `<p>${escapeHtml(message)}</p>` : ""}</div><button type="button" aria-label="Dismiss notification">×</button>`;
+  toast.querySelector("button").addEventListener("click", () => toast.remove());
+  region.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add("visible"));
+  setTimeout(() => { toast.classList.remove("visible"); setTimeout(() => toast.remove(), 220); }, 6500);
+}
+
 async function emailTemplateAction(action, data = {}) {
   const response = await crmFetch("/api/email-templates", {
     method: "POST",
@@ -1165,7 +1176,8 @@ $("#taskForm").addEventListener("submit", async (event) => {
     const result = await crmAction("createTask", { title: String(data.get("title") || "").trim(), dueDate: String(data.get("dueDate") || ""), assignedTo: isManager() ? String(data.get("assignedTo") || currentUserName()) : currentUserName(), taskType: String(data.get("taskType") || "follow_up"), priority: String(data.get("priority") || "normal"), prospectId: String(data.get("prospectId") || ""), notes: String(data.get("notes") || "").trim() });
     $("#taskDialog").close();
     await refreshCrm();
-    if (!result.calendarSynced) alert(`Task saved, but Google Calendar did not sync. ${result.calendarSyncError || "Reconnect Google and try again."}`);
+    if (result.calendarSynced) showToast("Task added to Google Calendar", `${result.task.title} is on ${result.task.calendar_owner_email || "the assigned calendar"}.`);
+    else showToast("Task saved — Calendar needs attention", result.calendarSyncError || "Reconnect Google and try again.", "warning");
   } catch (error) { alert(error.message); } finally { button.disabled = false; }
 });
 
