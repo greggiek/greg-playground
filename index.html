@@ -16,6 +16,7 @@
       <div class="header-actions">
         <span id="profileBadge" class="profile-badge" hidden></span>
         <button id="switchUserBtn" class="btn btn-secondary" type="button" hidden>Switch User</button>
+        <button id="contactsBtn" class="btn btn-secondary" type="button">Contacts</button>
         <button id="bulkEmailBtn" class="btn btn-secondary" type="button" hidden>Bulk Email</button>
         <button id="importProspectsBtn" class="btn btn-secondary" hidden>Import</button>
         <button id="newProspectBtn" class="btn btn-primary">+ New Prospect</button>
@@ -60,6 +61,26 @@
           </div>
           <div id="prospectList" class="card-list"></div>
         </section>
+      </section>
+
+      <section id="contactsView" class="view">
+        <button class="back-link" data-back>← Dashboard</button>
+        <div class="contacts-shell">
+          <div class="contacts-heading">
+            <div><p class="eyebrow">CRM DATABASE</p><h2>Contacts</h2><p id="contactsCount" class="status-text">0 records</p></div>
+            <button id="contactsNewBtn" class="btn btn-primary" type="button">+ Create Contact</button>
+          </div>
+          <div class="contacts-tabs"><button id="allContactsTab" class="contact-tab active" type="button">All contacts</button><button id="myContactsTab" class="contact-tab" type="button">My contacts</button></div>
+          <div class="contacts-filters">
+            <input id="contactsSearch" type="search" placeholder="Search name, company, email, phone, or address…" />
+            <select id="contactsStage"><option value="">All stages</option><option>New Lead</option><option>Contacted</option><option>Quoting</option><option>Follow-Up</option><option>Won</option><option>Lost</option></select>
+            <select id="contactsOwner"><option value="">All owners</option></select>
+            <select id="contactsSort"><option value="lastActivity:desc">Last activity: newest</option><option value="lastActivity:asc">Last activity: oldest</option><option value="companyName:asc">Company: A–Z</option><option value="companyName:desc">Company: Z–A</option><option value="contactName:asc">Contact: A–Z</option><option value="contactName:desc">Contact: Z–A</option><option value="createdAt:desc">Created: newest</option><option value="createdAt:asc">Created: oldest</option><option value="estimatedValue:desc">Value: highest</option><option value="estimatedValue:asc">Value: lowest</option></select>
+            <button id="contactsClearFilters" class="btn btn-secondary" type="button">Clear</button>
+          </div>
+          <div class="contacts-table-wrap"><table class="contacts-table"><thead><tr><th>Name</th><th>Company</th><th>Stage</th><th>Owner</th><th>Email</th><th>Phone</th><th>Value</th><th>Last activity</th><th>Created</th></tr></thead><tbody id="contactsTableBody"></tbody></table></div>
+          <div class="contacts-pagination"><span id="contactsRange"></span><div><button id="contactsPrev" class="btn btn-secondary btn-small" type="button">← Previous</button><button id="contactsNext" class="btn btn-secondary btn-small" type="button">Next →</button></div></div>
+        </div>
       </section>
 
       <section id="prospectView" class="view">
