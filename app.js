@@ -794,10 +794,38 @@ async function openBulkEmail() {
   updateBulkEmailAudience();
   showView("bulkEmailView");
   try {
-    await Promise.all([loadEmailTemplates(), loadGmailConnection()]);
+    await Promise.all([loadEmailTemplates(), loadGmailConnection(), loadEmailAnalytics()]);
   } catch (error) {
     alert(error.message);
   }
+}
+
+async function loadEmailAnalytics() {
+  const response = await crmFetch("/api/email-analytics");
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.error || "Could not load email results.");
+  const summary = body.summary || { sent: 0, opened: 0, clicked: 0 };
+  const rows = (body.messages || []).slice(0, 10);
+  $("#emailAnalytics").innerHTML = `<div class="recipient-summary">${summary.sent} sent · ${summary.opened} opened · ${summary.clicked} clicked</div>${rows.length ? rows.map((m) => `<article class="saved-template-card"><strong>${escapeHtml(m.recipient_name || m.recipient_email)}</strong><div class="card-meta">${escapeHtml(m.subject)} · ${escapeHtml(m.status)}</div><div class="card-meta">${m.first_opened_at ? "Opened" : "Not opened"} · ${m.first_clicked_at ? "Clicked" : "Not clicked"}</div></article>`).join("") : `<div class="empty">No tracked sends yet.</div>`}`;
+}
+
+async function sendTrackedEmail() {
+  const audience = bulkEmailAudience();
+  const subject = $("#emailTemplateSubject").value.trim();
+  const body = $("#emailTemplateBody").value.trim();
+  if (audience.length !== 1) return alert("For the first tracked test, filter the audience to exactly one recipient.");
+  if (!subject || !body) return alert("Add a subject and message first.");
+  const recipient = audience[0];
+  if (!confirm(`Send this real tracked email now?\n\nTo: ${recipient.contactName || recipient.companyName} <${recipient.email}>\nSubject: ${subject}`)) return;
+  const button = $("#sendTrackedEmailBtn");
+  button.disabled = true;
+  try {
+    const response = await crmFetch("/api/email-send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ recipientEmail: recipient.email, recipientName: recipient.contactName || recipient.companyName, subject, body }) });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Email send failed.");
+    alert(`Tracked email sent to ${recipient.email}.`);
+    await loadEmailAnalytics();
+  } catch (error) { alert(error.message); } finally { button.disabled = false; }
 }
 
 async function loadGmailConnection() {
@@ -884,6 +912,7 @@ $("#bulkEmailOwner").addEventListener("change", updateBulkEmailAudience);
 $("#saveEmailTemplateBtn").addEventListener("click", saveEmailTemplate);
 $("#clearEmailTemplateBtn").addEventListener("click", clearEmailTemplate);
 $("#prepareBulkEmailBtn").addEventListener("click", prepareBulkEmail);
+$("#sendTrackedEmailBtn").addEventListener("click", sendTrackedEmail);
 $("#connectGmailBtn").addEventListener("click", connectGmail);
 
 const gmailResult = new URLSearchParams(window.location.search);

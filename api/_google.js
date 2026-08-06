@@ -36,10 +36,33 @@ function encryptToken(token) {
   return [iv.toString("base64url"), cipher.getAuthTag().toString("base64url"), encrypted.toString("base64url")].join(".");
 }
 
+function decryptToken(value) {
+  const [ivPart, tagPart, encryptedPart] = String(value || "").split(".");
+  if (!ivPart || !tagPart || !encryptedPart) throw new Error("Stored Gmail token is invalid. Reconnect Gmail.");
+  const key = crypto.createHash("sha256").update(env("GOOGLE_CLIENT_SECRET")).digest();
+  const decipher = crypto.createDecipheriv("aes-256-gcm", key, Buffer.from(ivPart, "base64url"));
+  decipher.setAuthTag(Buffer.from(tagPart, "base64url"));
+  return Buffer.concat([decipher.update(Buffer.from(encryptedPart, "base64url")), decipher.final()]).toString("utf8");
+}
+
 async function gmailConnection() {
   const email = encodeURIComponent(env("GMAIL_SENDER_EMAIL").toLowerCase());
   const rows = await gmailSupabaseRest(`crm_gmail_connections?email=eq.${email}&select=email,connected_at,updated_at&limit=1`);
   return rows?.[0] || null;
 }
 
-module.exports = { env, signState, verifyState, encryptToken, gmailConnection };
+async function gmailAccessToken() {
+  const email = encodeURIComponent(env("GMAIL_SENDER_EMAIL").toLowerCase());
+  const rows = await gmailSupabaseRest(`crm_gmail_connections?email=eq.${email}&select=refresh_token_encrypted&limit=1`);
+  if (!rows?.[0]) throw new Error("Gmail is not connected.");
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ client_id: env("GOOGLE_CLIENT_ID"), client_secret: env("GOOGLE_CLIENT_SECRET"), refresh_token: decryptToken(rows[0].refresh_token_encrypted), grant_type: "refresh_token" }),
+  });
+  const body = await response.json();
+  if (!response.ok || !body.access_token) throw new Error(body.error_description || "Could not refresh Gmail access.");
+  return body.access_token;
+}
+
+module.exports = { env, signState, verifyState, encryptToken, decryptToken, gmailConnection, gmailAccessToken };
