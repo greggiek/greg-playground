@@ -26,6 +26,7 @@
 
     <main>
       <section id="homeView" class="view active">
+        <div class="dashboard-welcome"><p id="dashboardDate" class="status-text"></p><h2 id="dashboardGreeting">Welcome back</h2></div>
         <div class="hero-card">
           <div>
             <p class="eyebrow">TODAY</p>
@@ -40,6 +41,11 @@
           <article class="stat-card"><span>Quotes</span><strong id="quoteCount">0</strong></article>
           <article class="stat-card"><span>Customers Won</span><strong id="wonCount">0</strong></article>
         </div>
+
+        <section class="activity-feed-card">
+          <div class="activity-feed-heading"><div><p class="eyebrow">LIVE CRM</p><h3>Activity Feed</h3></div><select id="activityTypeFilter" aria-label="Filter activity type"><option value="">All activity</option><option value="contact">Contacts</option><option value="note">Notes</option><option value="quote">Quotes</option><option value="email_sent">Email sent</option><option value="email_open">Email opens</option><option value="email_click">Email clicks</option></select></div>
+          <div id="activityFeed" class="activity-feed"><div class="empty">Loading activity…</div></div>
+        </section>
 
         <div class="toolbar">
           <input id="searchInput" type="search" placeholder="Search prospects..." />
