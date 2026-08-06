@@ -10,11 +10,12 @@ async function gmailSupabaseRest(path, options = {}) {
 
 async function supabaseRestWith(urlName, keyName, path, options = {}) {
   const key = env(keyName);
+  const authorization = key.split(".").length === 3 ? { Authorization: `Bearer ${key}` } : {};
   const response = await fetch(`${env(urlName)}/rest/v1/${path}`, {
     ...options,
     headers: {
       apikey: key,
-      Authorization: `Bearer ${key}`,
+      ...authorization,
       "Content-Type": "application/json",
       ...(options.headers || {}),
     },
