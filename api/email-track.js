@@ -42,5 +42,19 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  if (type === "unsubscribe") {
+    if (!/^[0-9a-f-]{36}$/i.test(token)) return res.status(404).send("Unsubscribe link not found.");
+    try {
+      const rows = await gmailSupabaseRest(`crm_email_messages?unsubscribe_token=eq.${encodeURIComponent(token)}&select=recipient_email,campaign_id&limit=1`);
+      const message = rows?.[0];
+      if (!message) return res.status(404).send("Unsubscribe link not found.");
+      await gmailSupabaseRest("crm_email_unsubscribes", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify({ email: message.recipient_email.toLowerCase(), token, source_campaign_id: message.campaign_id, unsubscribed_at: new Date().toISOString() }) });
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
+      return res.status(200).send("<!doctype html><meta name=viewport content='width=device-width'><title>Unsubscribed</title><main style='max-width:560px;margin:80px auto;font:18px system-ui;padding:24px'><h1>You’re unsubscribed</h1><p>You will no longer receive campaign emails from Bargain Moulding.</p></main>");
+    } catch (_) {
+      return res.status(500).send("We could not process this request. Please contact Bargain Moulding.");
+    }
+  }
+
   return res.status(404).send("Tracking event not found.");
 };

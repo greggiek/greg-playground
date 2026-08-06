@@ -804,26 +804,28 @@ async function loadEmailAnalytics() {
   const response = await crmFetch("/api/email-analytics");
   const body = await response.json();
   if (!response.ok) throw new Error(body.error || "Could not load email results.");
-  const summary = body.summary || { sent: 0, opened: 0, clicked: 0 };
-  const rows = (body.messages || []).slice(0, 10);
-  $("#emailAnalytics").innerHTML = `<div class="recipient-summary">${summary.sent} sent · ${summary.opened} opened · ${summary.clicked} clicked</div>${rows.length ? rows.map((m) => `<article class="saved-template-card"><strong>${escapeHtml(m.recipient_name || m.recipient_email)}</strong><div class="card-meta">${escapeHtml(m.subject)} · ${escapeHtml(m.status)}</div><div class="card-meta">${m.first_opened_at ? "Opened" : "Not opened"} · ${m.first_clicked_at ? "Clicked" : "Not clicked"}</div></article>`).join("") : `<div class="empty">No tracked sends yet.</div>`}`;
+  const summary = body.summary || { sent: 0, opened: 0, clicked: 0, unsubscribed: 0 };
+  const campaigns = (body.campaigns || []).slice(0, 10);
+  $("#emailAnalytics").innerHTML = `<div class="recipient-summary">${summary.sent} sent · ${summary.opened} opened · ${summary.clicked} clicked · ${summary.unsubscribed || 0} unsubscribed</div>${campaigns.length ? campaigns.map((campaign) => `<article class="saved-template-card"><strong>${escapeHtml(campaign.name)}</strong><div class="card-meta">${escapeHtml(campaign.subject)} · ${escapeHtml(campaign.status)}</div><div class="card-meta">${campaign.sent} sent · ${campaign.failed} failed · ${campaign.opened} opened · ${campaign.clicked} clicked</div></article>`).join("") : `<div class="empty">No campaigns yet.</div>`}`;
 }
 
 async function sendTrackedEmail() {
   const audience = bulkEmailAudience();
+  const campaignName = $("#emailCampaignName").value.trim();
   const subject = $("#emailTemplateSubject").value.trim();
   const body = $("#emailTemplateBody").value.trim();
-  if (audience.length !== 1) return alert("For the first tracked test, filter the audience to exactly one recipient.");
+  if (!audience.length) return alert("Choose at least one recipient.");
+  if (audience.length > 25) return alert("Campaigns are limited to 25 recipients during beta. Narrow the audience first.");
   if (!subject || !body) return alert("Add a subject and message first.");
-  const recipient = audience[0];
-  if (!confirm(`Send this real tracked email now?\n\nTo: ${recipient.contactName || recipient.companyName} <${recipient.email}>\nSubject: ${subject}`)) return;
+  const recipientList = audience.map((recipient) => `${recipient.contactName || recipient.companyName} <${recipient.email}>`).join("\n");
+  if (!confirm(`Send this real tracked campaign now?\n\nCampaign: ${campaignName || subject}\nSubject: ${subject}\nRecipients (${audience.length}):\n${recipientList}\n\nEach recipient receives a separate email.`)) return;
   const button = $("#sendTrackedEmailBtn");
   button.disabled = true;
   try {
-    const response = await crmFetch("/api/email-send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ recipientEmail: recipient.email, recipientName: recipient.contactName || recipient.companyName, subject, body }) });
+    const response = await crmFetch("/api/email-send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ campaignName: campaignName || subject, recipients: audience.map((recipient) => ({ email: recipient.email, name: recipient.contactName || recipient.companyName })), subject, body }) });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "Email send failed.");
-    alert(`Tracked email sent to ${recipient.email}.`);
+    alert(`Campaign complete: ${result.sent} sent, ${result.failed} failed, ${result.skippedUnsubscribed} skipped because they unsubscribed.`);
     await loadEmailAnalytics();
   } catch (error) { alert(error.message); } finally { button.disabled = false; }
 }

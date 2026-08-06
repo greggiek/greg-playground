@@ -121,15 +121,16 @@
               <div id="bulkRecipientPreview" class="recipient-preview"></div>
 
               <div class="section-heading"><h3>Email Template</h3></div>
+              <input id="emailCampaignName" placeholder="Campaign name, e.g. August Door Promotion" maxlength="120" />
               <input id="emailTemplateName" placeholder="Template name, e.g. Door Promotion" maxlength="120" />
               <label class="field-label template-field" for="emailTemplateSubject">Subject</label>
               <input id="emailTemplateSubject" placeholder="Email subject" maxlength="300" />
               <label class="field-label template-field" for="emailTemplateBody">Message</label>
               <textarea id="emailTemplateBody" rows="12" maxlength="20000" placeholder="Write the email message…"></textarea>
-              <p class="status-text">Tracked send works with one recipient at a time. Include a full https:// link in the message to test click tracking. Opens are approximate because some mail apps block or pre-load images.</p>
+              <p class="status-text">Campaigns are limited to 25 recipients during beta. Every recipient gets a private tracked email and an unsubscribe link. Opens are approximate because some mail apps block or pre-load images.</p>
               <div class="button-row">
                 <button id="saveEmailTemplateBtn" class="btn btn-primary" type="button">Save Template</button>
-                <button id="sendTrackedEmailBtn" class="btn btn-primary" type="button">Send Tracked Test</button>
+                <button id="sendTrackedEmailBtn" class="btn btn-primary" type="button">Review &amp; Send Campaign</button>
                 <button id="prepareBulkEmailBtn" class="btn btn-secondary" type="button">Prepare Gmail Draft</button>
                 <button id="clearEmailTemplateBtn" class="btn btn-secondary" type="button">Clear</button>
               </div>
