@@ -1,5 +1,5 @@
-const { requireManager } = require("./_auth");
-const { gmailSupabaseRest } = require("./_supabase");
+const { requireManager } = require("../lib/auth");
+const { gmailSupabaseRest } = require("../lib/supabase");
 
 module.exports = async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed." });
