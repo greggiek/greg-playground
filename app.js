@@ -1,6 +1,6 @@
 const STORAGE_KEY = "bargainProspectCRM.v1";
 
-let state = { prospects: [] };
+let state = { prospects: [], tasks: [] };
 localStorage.removeItem(STORAGE_KEY);
 let currentProspectId = null;
 let draftQuoteLines = [];
@@ -11,6 +11,7 @@ let editingEmailTemplateId = null;
 let contactsPage = 1;
 let contactsMineOnly = false;
 let homeEmailMessages = [];
+let agendaView = "week";
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -43,13 +44,17 @@ function fromDbProspect(p) {
   };
 }
 
+function fromDbTask(task) {
+  return { id: task.id, title: task.title, notes: task.notes || "", taskType: task.task_type, priority: task.priority, dueDate: task.due_date, assignedTo: task.assigned_to, prospectId: task.prospect_id, status: task.status, createdBy: task.created_by, createdAt: task.created_at, completedAt: task.completed_at };
+}
+
 async function refreshCrm(openId) {
   const response = await crmFetch("/api/crm");
   const body = await response.json();
   if (!response.ok) throw new Error(body.error || "Could not load CRM.");
   currentUser = body.currentUser || currentUser;
   applyProfilePermissions();
-  state = { prospects: (body.prospects || []).map(fromDbProspect) };
+  state = { prospects: (body.prospects || []).map(fromDbProspect), tasks: (body.tasks || []).map(fromDbTask) };
   saveState();
   renderHome();
   if (isManager()) loadHomeEmailActivity();
@@ -192,6 +197,7 @@ function renderHome() {
   $("#quoteCount").textContent = state.prospects.reduce((sum, p) => sum + (p.quotes || []).length, 0);
   $("#wonCount").textContent = state.prospects.filter((p) => p.stage === "Won" || p.customerId).length;
   renderHomeActivity();
+  renderAgenda();
 
   $("#followUpList").innerHTML = followUps.length
     ? followUps.map(({ prospect, reminder }) => `
@@ -219,9 +225,50 @@ function renderHome() {
       }).join("")
     : `<div class="empty">No prospects yet. Tap “New Prospect” to add one.</div>`;
 
-  document.querySelectorAll("[data-open-prospect]").forEach((el) => {
+  document.querySelectorAll("[data-open-prospect]:not(.task-contact-link)").forEach((el) => {
     el.addEventListener("click", () => openProspect(el.dataset.openProspect));
   });
+}
+
+function dateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function currentWeekBounds() {
+  const today = new Date();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return [dateKey(monday), dateKey(sunday)];
+}
+
+function renderAgenda() {
+  const search = $("#agendaSearch").value.trim().toLowerCase();
+  const selectedAssignee = $("#agendaAssignee").value;
+  const taskType = $("#agendaType").value;
+  const showCompleted = $("#agendaShowCompleted").checked;
+  const assignees = [...new Set([currentUserName(), ...state.tasks.map((task) => task.assignedTo)].filter(Boolean))].sort();
+  $("#agendaAssignee").innerHTML = `<option value="">All assignees</option>${assignees.map((name) => `<option${name === selectedAssignee ? " selected" : ""}>${escapeHtml(name)}</option>`).join("")}`;
+  const today = dateKey();
+  const [weekStart, weekEnd] = currentWeekBounds();
+  const tasks = state.tasks.filter((task) => {
+    const viewMatches = agendaView === "today" ? task.dueDate === today : agendaView === "overdue" ? task.dueDate < today && task.status !== "completed" : agendaView === "week" ? task.dueDate >= weekStart && task.dueDate <= weekEnd && task.assignedTo === currentUserName() : true;
+    return viewMatches && (showCompleted || task.status !== "completed") && (!selectedAssignee || task.assignedTo === selectedAssignee) && (!taskType || task.taskType === taskType) && (!search || [task.title, task.notes, task.assignedTo].join(" ").toLowerCase().includes(search));
+  }).sort((a, b) => a.dueDate.localeCompare(b.dueDate) || ({ high: 0, normal: 1, low: 2 }[a.priority] - { high: 0, normal: 1, low: 2 }[b.priority]));
+  const openTaskCount = tasks.filter((task) => task.status !== "completed").length;
+  $("#agendaSummary").textContent = `${openTaskCount} open task${openTaskCount === 1 ? "" : "s"} · Week of ${weekStart}`;
+  $("#agendaTableBody").innerHTML = tasks.length ? tasks.map((task) => {
+    const prospect = prospectById(task.prospectId);
+    const overdue = task.status !== "completed" && task.dueDate < today;
+    return `<tr class="${task.status === "completed" ? "task-completed" : overdue ? "task-overdue" : ""}"><td><button class="task-check" data-task-toggle="${task.id}" data-task-status="${task.status}" type="button" aria-label="${task.status === "completed" ? "Reopen" : "Complete"} task">${task.status === "completed" ? "✓" : ""}</button></td><td><strong>${escapeHtml(task.title)}</strong>${task.notes ? `<div class="card-meta">${escapeHtml(task.notes)}</div>` : ""}</td><td>${prospect ? `<button class="task-contact-link" data-open-prospect="${prospect.id}" type="button">${escapeHtml(prospect.contactName || prospect.companyName)}</button>` : "—"}</td><td><span class="badge">${escapeHtml(task.taskType.replaceAll("_", " "))}</span></td><td><strong>${escapeHtml(task.dueDate)}</strong></td><td>${escapeHtml(task.assignedTo)}</td><td><span class="badge priority-${task.priority}">${escapeHtml(task.priority)}</span></td><td><button class="icon-btn task-delete" data-task-delete="${task.id}" type="button" aria-label="Delete task">×</button></td></tr>`;
+  }).join("") : `<tr><td colspan="8"><div class="empty">No tasks match this agenda view.</div></td></tr>`;
+  document.querySelectorAll("[data-task-toggle]").forEach((button) => button.addEventListener("click", async () => { button.disabled = true; try { await crmAction("setTaskStatus", { id: button.dataset.taskToggle, status: button.dataset.taskStatus === "completed" ? "open" : "completed" }); await refreshCrm(); } catch (error) { alert(error.message); } }));
+  document.querySelectorAll("[data-task-delete]").forEach((button) => button.addEventListener("click", async () => { if (!confirm("Delete this task?")) return; try { await crmAction("deleteTask", { id: button.dataset.taskDelete }); await refreshCrm(); } catch (error) { alert(error.message); } }));
+  document.querySelectorAll(".task-contact-link[data-open-prospect]").forEach((button) => button.addEventListener("click", () => openProspect(button.dataset.openProspect)));
 }
 
 async function loadHomeEmailActivity() {
@@ -1023,6 +1070,24 @@ $("#switchUserBtn").addEventListener("click", () => {
 });
 $("#contactsBtn").addEventListener("click", openContacts);
 $("#activityTypeFilter").addEventListener("change", renderHomeActivity);
+$("#createTaskBtn").addEventListener("click", () => {
+  const form = $("#taskForm");
+  form.reset();
+  form.elements.dueDate.value = dateKey();
+  form.elements.assignedTo.value = currentUserName();
+  form.elements.assignedTo.disabled = !isManager();
+  form.elements.prospectId.innerHTML = `<option value="">No associated contact</option>${[...state.prospects].sort((a, b) => a.companyName.localeCompare(b.companyName)).map((prospect) => `<option value="${prospect.id}">${escapeHtml(prospect.companyName)}${prospect.contactName ? ` — ${escapeHtml(prospect.contactName)}` : ""}</option>`).join("")}`;
+  $("#taskDialog").showModal();
+});
+document.querySelectorAll("[data-agenda-view]").forEach((button) => button.addEventListener("click", () => {
+  agendaView = button.dataset.agendaView;
+  document.querySelectorAll("[data-agenda-view]").forEach((item) => item.classList.toggle("active", item === button));
+  renderAgenda();
+}));
+$("#agendaSearch").addEventListener("input", renderAgenda);
+$("#agendaAssignee").addEventListener("change", renderAgenda);
+$("#agendaType").addEventListener("change", renderAgenda);
+$("#agendaShowCompleted").addEventListener("change", renderAgenda);
 $("#campaignsBtn").addEventListener("click", openCampaignDashboard);
 $("#refreshCampaignsBtn").addEventListener("click", openCampaignDashboard);
 $("#newCampaignBtn").addEventListener("click", openBulkEmail);
@@ -1081,6 +1146,21 @@ if (gmailResult.get("gmail") === "connected") {
 document.querySelectorAll("[data-close-dialog]").forEach((btn) =>
   btn.addEventListener("click", () => $("#prospectDialog").close())
 );
+
+document.querySelectorAll("[data-close-task]").forEach((btn) => btn.addEventListener("click", () => $("#taskDialog").close()));
+
+$("#taskForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = new FormData(form);
+  const button = form.querySelector('[type="submit"]');
+  button.disabled = true;
+  try {
+    await crmAction("createTask", { title: String(data.get("title") || "").trim(), dueDate: String(data.get("dueDate") || ""), assignedTo: isManager() ? String(data.get("assignedTo") || currentUserName()) : currentUserName(), taskType: String(data.get("taskType") || "follow_up"), priority: String(data.get("priority") || "normal"), prospectId: String(data.get("prospectId") || ""), notes: String(data.get("notes") || "").trim() });
+    $("#taskDialog").close();
+    await refreshCrm();
+  } catch (error) { alert(error.message); } finally { button.disabled = false; }
+});
 
 document.querySelectorAll("[data-close-note]").forEach((btn) =>
   btn.addEventListener("click", () => $("#noteDialog").close())
