@@ -45,7 +45,7 @@ function fromDbProspect(p) {
 }
 
 function fromDbTask(task) {
-  return { id: task.id, title: task.title, notes: task.notes || "", taskType: task.task_type, priority: task.priority, dueDate: task.due_date, assignedTo: task.assigned_to, prospectId: task.prospect_id, status: task.status, createdBy: task.created_by, createdAt: task.created_at, completedAt: task.completed_at };
+  return { id: task.id, title: task.title, notes: task.notes || "", taskType: task.task_type, priority: task.priority, dueDate: task.due_date, assignedTo: task.assigned_to, prospectId: task.prospect_id, status: task.status, createdBy: task.created_by, createdAt: task.created_at, completedAt: task.completed_at, calendarEventId: task.google_calendar_event_id, calendarOwnerEmail: task.calendar_owner_email, calendarSyncedAt: task.calendar_synced_at, calendarSyncError: task.calendar_sync_error };
 }
 
 async function refreshCrm(openId) {
@@ -57,6 +57,7 @@ async function refreshCrm(openId) {
   state = { prospects: (body.prospects || []).map(fromDbProspect), tasks: (body.tasks || []).map(fromDbTask) };
   saveState();
   renderHome();
+  loadGoogleConnection().catch(() => {});
   if (isManager()) loadHomeEmailActivity();
   if (openId) openProspect(openId);
 }
@@ -264,8 +265,9 @@ function renderAgenda() {
   $("#agendaTableBody").innerHTML = tasks.length ? tasks.map((task) => {
     const prospect = prospectById(task.prospectId);
     const overdue = task.status !== "completed" && task.dueDate < today;
-    return `<tr class="${task.status === "completed" ? "task-completed" : overdue ? "task-overdue" : ""}"><td><button class="task-check" data-task-toggle="${task.id}" data-task-status="${task.status}" type="button" aria-label="${task.status === "completed" ? "Reopen" : "Complete"} task">${task.status === "completed" ? "✓" : ""}</button></td><td><strong>${escapeHtml(task.title)}</strong>${task.notes ? `<div class="card-meta">${escapeHtml(task.notes)}</div>` : ""}</td><td>${prospect ? `<button class="task-contact-link" data-open-prospect="${prospect.id}" type="button">${escapeHtml(prospect.contactName || prospect.companyName)}</button>` : "—"}</td><td><span class="badge">${escapeHtml(task.taskType.replaceAll("_", " "))}</span></td><td><strong>${escapeHtml(task.dueDate)}</strong></td><td>${escapeHtml(task.assignedTo)}</td><td><span class="badge priority-${task.priority}">${escapeHtml(task.priority)}</span></td><td><button class="icon-btn task-delete" data-task-delete="${task.id}" type="button" aria-label="Delete task">×</button></td></tr>`;
-  }).join("") : `<tr><td colspan="8"><div class="empty">No tasks match this agenda view.</div></td></tr>`;
+    const calendarStatus = task.calendarEventId ? `<span class="badge">Synced</span>` : `<span class="badge" title="${escapeHtml(task.calendarSyncError || "Calendar has not synced")}">Not synced</span>`;
+    return `<tr class="${task.status === "completed" ? "task-completed" : overdue ? "task-overdue" : ""}"><td><button class="task-check" data-task-toggle="${task.id}" data-task-status="${task.status}" type="button" aria-label="${task.status === "completed" ? "Reopen" : "Complete"} task">${task.status === "completed" ? "✓" : ""}</button></td><td><strong>${escapeHtml(task.title)}</strong>${task.notes ? `<div class="card-meta">${escapeHtml(task.notes)}</div>` : ""}</td><td>${prospect ? `<button class="task-contact-link" data-open-prospect="${prospect.id}" type="button">${escapeHtml(prospect.contactName || prospect.companyName)}</button>` : "—"}</td><td><span class="badge">${escapeHtml(task.taskType.replaceAll("_", " "))}</span></td><td><strong>${escapeHtml(task.dueDate)}</strong></td><td>${escapeHtml(task.assignedTo)}</td><td><span class="badge priority-${task.priority}">${escapeHtml(task.priority)}</span></td><td>${calendarStatus}</td><td><button class="icon-btn task-delete" data-task-delete="${task.id}" type="button" aria-label="Delete task">×</button></td></tr>`;
+  }).join("") : `<tr><td colspan="9"><div class="empty">No tasks match this agenda view.</div></td></tr>`;
   document.querySelectorAll("[data-task-toggle]").forEach((button) => button.addEventListener("click", async () => { button.disabled = true; try { await crmAction("setTaskStatus", { id: button.dataset.taskToggle, status: button.dataset.taskStatus === "completed" ? "open" : "completed" }); await refreshCrm(); } catch (error) { alert(error.message); } }));
   document.querySelectorAll("[data-task-delete]").forEach((button) => button.addEventListener("click", async () => { if (!confirm("Delete this task?")) return; try { await crmAction("deleteTask", { id: button.dataset.taskDelete }); await refreshCrm(); } catch (error) { alert(error.message); } }));
   document.querySelectorAll(".task-contact-link[data-open-prospect]").forEach((button) => button.addEventListener("click", () => openProspect(button.dataset.openProspect)));
@@ -936,7 +938,7 @@ async function openBulkEmail() {
   updateBulkEmailAudience();
   showView("bulkEmailView");
   try {
-    await Promise.all([loadEmailTemplates(), loadGmailConnection(), loadEmailAnalytics()]);
+    await Promise.all([loadEmailTemplates(), loadGoogleConnection(), loadEmailAnalytics()]);
   } catch (error) {
     alert(error.message);
   }
@@ -1000,16 +1002,19 @@ async function sendTrackedEmail() {
   } catch (error) { alert(error.message); } finally { button.disabled = false; }
 }
 
-async function loadGmailConnection() {
+async function loadGoogleConnection() {
   const response = await crmFetch("/api/gmail");
   const body = await response.json();
-  if (!response.ok) throw new Error(body.error || "Could not check Gmail connection.");
-  $("#gmailConnectionStatus").textContent = body.connected ? `Connected: ${body.email}` : `Not connected: ${body.email}`;
-  $("#connectGmailBtn").textContent = body.connected ? "Reconnect Gmail" : "Connect Gmail";
+  if (!response.ok) throw new Error(body.error || "Could not check Google connection.");
+  const status = body.calendarConnected ? `Google Calendar connected: ${body.email}` : body.connected ? "Reconnect Google to enable Calendar" : `Google not connected: ${body.email}`;
+  $("#agendaGoogleStatus").textContent = status;
+  $("#agendaConnectGoogleBtn").textContent = body.calendarConnected ? "Reconnect Google" : "Connect Google";
+  $("#gmailConnectionStatus").textContent = body.connected ? `Google connected: ${body.email}` : `Not connected: ${body.email}`;
+  $("#connectGmailBtn").textContent = body.connected ? "Reconnect Google" : "Connect Google";
 }
 
-async function connectGmail() {
-  const button = $("#connectGmailBtn");
+async function connectGoogle(event) {
+  const button = event.currentTarget;
   button.disabled = true;
   try {
     const response = await crmFetch("/api/auth/google/start");
@@ -1132,11 +1137,12 @@ $("#saveEmailTemplateBtn").addEventListener("click", saveEmailTemplate);
 $("#clearEmailTemplateBtn").addEventListener("click", clearEmailTemplate);
 $("#prepareBulkEmailBtn").addEventListener("click", prepareBulkEmail);
 $("#sendTrackedEmailBtn").addEventListener("click", sendTrackedEmail);
-$("#connectGmailBtn").addEventListener("click", connectGmail);
+$("#connectGmailBtn").addEventListener("click", connectGoogle);
+$("#agendaConnectGoogleBtn").addEventListener("click", connectGoogle);
 
 const gmailResult = new URLSearchParams(window.location.search);
 if (gmailResult.get("gmail") === "connected") {
-  alert("Gmail connected successfully.");
+  alert("Google Mail and Calendar connected successfully.");
   history.replaceState({}, "", window.location.pathname);
 } else if (gmailResult.get("gmail") === "error") {
   alert(gmailResult.get("message") || "Gmail connection failed.");
@@ -1156,9 +1162,10 @@ $("#taskForm").addEventListener("submit", async (event) => {
   const button = form.querySelector('[type="submit"]');
   button.disabled = true;
   try {
-    await crmAction("createTask", { title: String(data.get("title") || "").trim(), dueDate: String(data.get("dueDate") || ""), assignedTo: isManager() ? String(data.get("assignedTo") || currentUserName()) : currentUserName(), taskType: String(data.get("taskType") || "follow_up"), priority: String(data.get("priority") || "normal"), prospectId: String(data.get("prospectId") || ""), notes: String(data.get("notes") || "").trim() });
+    const result = await crmAction("createTask", { title: String(data.get("title") || "").trim(), dueDate: String(data.get("dueDate") || ""), assignedTo: isManager() ? String(data.get("assignedTo") || currentUserName()) : currentUserName(), taskType: String(data.get("taskType") || "follow_up"), priority: String(data.get("priority") || "normal"), prospectId: String(data.get("prospectId") || ""), notes: String(data.get("notes") || "").trim() });
     $("#taskDialog").close();
     await refreshCrm();
+    if (!result.calendarSynced) alert(`Task saved, but Google Calendar did not sync. ${result.calendarSyncError || "Reconnect Google and try again."}`);
   } catch (error) { alert(error.message); } finally { button.disabled = false; }
 });
 

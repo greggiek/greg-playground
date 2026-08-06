@@ -100,6 +100,7 @@ main {
 .activity-meta { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: .76rem; white-space: nowrap; }
 .weekly-agenda-card { margin: 18px 0 22px; background: var(--card); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden; }
 .agenda-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 20px 12px; }
+.agenda-actions { display: flex; align-items: center; justify-content: flex-end; gap: 9px; flex-wrap: wrap; }
 .agenda-tabs { display: flex; gap: 3px; padding: 0 18px; border-bottom: 1px solid var(--border); overflow-x: auto; }
 .agenda-tab { border: 0; border-bottom: 3px solid transparent; background: transparent; color: var(--muted); padding: 11px 14px; font-weight: 850; white-space: nowrap; cursor: pointer; }
 .agenda-tab.active { color: var(--brand); border-bottom-color: var(--brand); }
@@ -356,7 +357,8 @@ dialog label { display: grid; gap: 7px; margin-top: 14px; font-weight: 800; }
   .activity-feed-heading select { width: 100%; }
   .activity-item { grid-template-columns: 34px minmax(0, 1fr); }
   .activity-meta { grid-column: 2; justify-content: space-between; }
-  .agenda-heading { align-items: flex-start; }
+  .agenda-heading { align-items: flex-start; flex-direction: column; }
+  .agenda-actions { justify-content: flex-start; }
   .agenda-controls { grid-template-columns: 1fr; }
   .toolbar { grid-template-columns: 1fr; }
   .form-grid { grid-template-columns: 1fr; gap: 0; }
