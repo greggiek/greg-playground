@@ -1,6 +1,6 @@
 const readXlsxFile = require("read-excel-file/node");
-const { requireCrmAccess, requireManager } = require("./_auth");
-const { supabaseRest } = require("./_supabase");
+const { requireCrmAccess, requireManager } = require("../lib/auth");
+const { supabaseRest } = require("../lib/supabase");
 
 const MAX_FILE_BYTES = 3 * 1024 * 1024;
 const MAX_ROWS = 1000;
