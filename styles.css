@@ -80,6 +80,24 @@ main {
   font-size: 1.3rem;
   font-weight: 900;
 }
+.dashboard-welcome { padding: 8px 2px 16px; }
+.dashboard-welcome h2 { font-size: clamp(1.55rem, 4vw, 2.15rem); }
+.activity-feed-card { margin: 18px 0 22px; background: var(--card); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden; }
+.activity-feed-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 20px; border-bottom: 1px solid var(--border); }
+.activity-feed-heading select { width: auto; min-width: 170px; padding: 9px 12px; border-radius: 9px; }
+.activity-feed { max-height: 430px; overflow-y: auto; }
+.activity-item { width: 100%; display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 13px 18px; border: 0; border-bottom: 1px solid var(--border); background: #fff; text-align: left; cursor: default; }
+.activity-item[data-activity-prospect] { cursor: pointer; }
+.activity-item:hover { background: #f7fafc; }
+.activity-icon { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 999px; background: #edf2f7; color: #344054; font-size: .76rem; font-weight: 950; }
+.activity-email_open { background: #e8f5ff; color: #175cd3; }
+.activity-email_click { background: #e7f8ef; color: #027a48; }
+.activity-email_sent { background: #f3edff; color: #6941c6; }
+.activity-quote { background: #fff3d6; color: #935f00; }
+.activity-copy { min-width: 0; }
+.activity-copy strong, .activity-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.activity-copy small { margin-top: 4px; color: var(--muted); }
+.activity-meta { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: .76rem; white-space: nowrap; }
 
 .toolbar { margin: 16px 0 22px; display: grid; grid-template-columns: 1fr 180px auto; gap: 10px; }
 .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
@@ -315,6 +333,10 @@ dialog label { display: grid; gap: 7px; margin-top: 14px; font-weight: 800; }
   .action-grid { grid-template-columns: repeat(2, 1fr); }
   .prospect-header-grid { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .activity-feed-heading { align-items: flex-start; flex-direction: column; }
+  .activity-feed-heading select { width: 100%; }
+  .activity-item { grid-template-columns: 34px minmax(0, 1fr); }
+  .activity-meta { grid-column: 2; justify-content: space-between; }
   .toolbar { grid-template-columns: 1fr; }
   .form-grid { grid-template-columns: 1fr; gap: 0; }
   .bulk-email-layout { grid-template-columns: 1fr; }
