@@ -1,7 +1,7 @@
 # BM Time — Simple MVP
 
 A deliberately small, location-based employee time clock.
-
+Production deployment trigger
 ## Included
 - Dedicated kiosk screen with 4-digit PIN keypad
 - Clock In and Clock Out only
