@@ -47,6 +47,13 @@
           <div id="activityFeed" class="activity-feed"><div class="empty">Loading activity…</div></div>
         </section>
 
+        <section class="weekly-agenda-card">
+          <div class="agenda-heading"><div><p class="eyebrow">PREPLANNED WEEK</p><h3>Weekly Agenda</h3><p id="agendaSummary" class="status-text">0 open tasks</p></div><button id="createTaskBtn" class="btn btn-primary" type="button">+ Create Task</button></div>
+          <div class="agenda-tabs"><button class="agenda-tab active" data-agenda-view="week" type="button">My Week</button><button class="agenda-tab" data-agenda-view="today" type="button">Due Today</button><button class="agenda-tab" data-agenda-view="overdue" type="button">Overdue</button><button class="agenda-tab" data-agenda-view="all" type="button">All Tasks</button></div>
+          <div class="agenda-controls"><input id="agendaSearch" type="search" placeholder="Search tasks…" /><select id="agendaAssignee"><option value="">All assignees</option></select><select id="agendaType"><option value="">All task types</option><option value="follow_up">Follow-up</option><option value="call">Call</option><option value="email">Email</option><option value="quote">Quote</option><option value="admin">Admin</option></select><label class="agenda-completed-toggle"><input id="agendaShowCompleted" type="checkbox" /> Show completed</label></div>
+          <div class="contacts-table-wrap"><table class="contacts-table agenda-table"><thead><tr><th>Status</th><th>Task</th><th>Contact</th><th>Type</th><th>Due</th><th>Assigned to</th><th>Priority</th><th></th></tr></thead><tbody id="agendaTableBody"></tbody></table></div>
+        </section>
+
         <div class="toolbar">
           <input id="searchInput" type="search" placeholder="Search prospects..." />
           <select id="stageFilter" aria-label="Filter by pipeline stage">
@@ -233,6 +240,18 @@
         <button class="btn btn-primary" type="submit">Save Prospect</button>
         <button class="btn btn-secondary" type="button" data-close-dialog>Cancel</button>
       </div>
+    </form>
+  </dialog>
+
+  <dialog id="taskDialog">
+    <form id="taskForm" method="dialog">
+      <div class="dialog-header"><div><p class="eyebrow">WEEKLY AGENDA</p><h2>Create Task</h2></div><button type="button" class="icon-btn" data-close-task aria-label="Close">×</button></div>
+      <label>Task Title<input name="title" required maxlength="200" autofocus /></label>
+      <div class="form-grid"><label>Due Date<input name="dueDate" type="date" required /></label><label>Assigned To<select name="assignedTo"><option>Greg</option><option>Craig</option><option>Rep 1</option></select></label></div>
+      <div class="form-grid"><label>Task Type<select name="taskType"><option value="follow_up">Follow-up</option><option value="call">Call</option><option value="email">Email</option><option value="quote">Quote</option><option value="admin">Admin</option></select></label><label>Priority<select name="priority"><option value="normal">Normal</option><option value="high">High</option><option value="low">Low</option></select></label></div>
+      <label>Associated Contact<select name="prospectId"><option value="">No associated contact</option></select></label>
+      <label>Notes<textarea name="notes" rows="4" maxlength="2000"></textarea></label>
+      <div class="button-row"><button class="btn btn-primary" type="submit">Save Task</button><button class="btn btn-secondary" type="button" data-close-task>Cancel</button></div>
     </form>
   </dialog>
 
