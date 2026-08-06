@@ -33,9 +33,9 @@ module.exports = async function handler(req, res) {
     const cleanUrl = url.replace(/[),.!?]+$/, "");
     const token = crypto.randomUUID();
     links.push({ id: crypto.randomUUID(), message_id: messageId, token, url: cleanUrl });
-    return `<a href="${origin}/api/email-track/click?token=${token}">${escapeHtml(cleanUrl)}</a>${escapeHtml(url.slice(cleanUrl.length))}`;
+    return `<a href="${origin}/api/email-track?type=click&token=${token}">${escapeHtml(cleanUrl)}</a>${escapeHtml(url.slice(cleanUrl.length))}`;
   }).replaceAll("\n", "<br>");
-  const html = `${escaped}<img src="${origin}/api/email-track/open?token=${openToken}" width="1" height="1" alt="" style="display:block;border:0;width:1px;height:1px">`;
+  const html = `${escaped}<img src="${origin}/api/email-track?type=open&token=${openToken}" width="1" height="1" alt="" style="display:block;border:0;width:1px;height:1px">`;
   const boundary = `bargain_${crypto.randomBytes(12).toString("hex")}`;
   const mime = [
     `From: Bargain Moulding <${env("GMAIL_SENDER_EMAIL")}>`,
