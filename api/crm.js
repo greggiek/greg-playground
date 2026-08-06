@@ -1,5 +1,6 @@
 const { requireCrmAccess, requireManager } = require("../lib/auth");
 const { supabaseRest } = require("../lib/supabase");
+const { createCalendarTaskEvent, deleteCalendarTaskEvent } = require("../lib/google");
 
 const OWNERS = new Set(["Greg", "Craig", "Rep 1"]);
 function validOwner(value) { return OWNERS.has(value) ? value : "Greg"; }
@@ -23,8 +24,14 @@ async function requireProspectAccess(user, prospectId, res) {
 }
 
 async function getTask(id) {
-  const rows = await supabaseRest(`crm_tasks?id=eq.${encodeURIComponent(id || "")}&select=id,assigned_to&limit=1`);
+  const rows = await supabaseRest(`crm_tasks?id=eq.${encodeURIComponent(id || "")}&select=id,assigned_to,google_calendar_event_id,calendar_owner_email&limit=1`);
   return rows?.[0] || null;
+}
+
+async function calendarOwnerEmail(user, assignedTo) {
+  if (assignedTo === user.name) return user.email;
+  const rows = await supabaseRest(`crm_users?name=eq.${encodeURIComponent(assignedTo)}&active=eq.true&select=email&limit=1`);
+  return rows?.[0]?.email || null;
 }
 
 async function requireTaskAccess(user, taskId, res) {
@@ -56,8 +63,19 @@ module.exports = async function handler(req, res) {
       if (data.prospectId && !await canAccessProspect(user, data.prospectId)) return res.status(403).json({ error: "You do not have access to that contact." });
       const allowedTypes = new Set(["follow_up", "call", "email", "quote", "admin"]);
       const allowedPriorities = new Set(["low", "normal", "high"]);
-      const [task] = await supabaseRest("crm_tasks", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify({ title, notes: String(data.notes || "").trim(), task_type: allowedTypes.has(data.taskType) ? data.taskType : "follow_up", priority: allowedPriorities.has(data.priority) ? data.priority : "normal", due_date: data.dueDate, assigned_to: assignedTo, prospect_id: data.prospectId || null, created_by: user.name }) });
-      return res.status(201).json({ task });
+      let [task] = await supabaseRest("crm_tasks", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify({ title, notes: String(data.notes || "").trim(), task_type: allowedTypes.has(data.taskType) ? data.taskType : "follow_up", priority: allowedPriorities.has(data.priority) ? data.priority : "normal", due_date: data.dueDate, assigned_to: assignedTo, prospect_id: data.prospectId || null, created_by: user.name }) });
+      const ownerEmail = await calendarOwnerEmail(user, assignedTo);
+      let calendarSyncError = null;
+      try {
+        if (!ownerEmail) throw new Error(`${assignedTo} does not have an email address configured.`);
+        const prospectRows = data.prospectId ? await supabaseRest(`crm_prospects?id=eq.${encodeURIComponent(data.prospectId)}&select=company_name,contact_name&limit=1`) : [];
+        const event = await createCalendarTaskEvent(ownerEmail, task, prospectRows?.[0] || null);
+        [task] = await supabaseRest(`crm_tasks?id=eq.${encodeURIComponent(task.id)}`, { method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify({ google_calendar_event_id: event.id, calendar_owner_email: ownerEmail, calendar_synced_at: new Date().toISOString(), calendar_sync_error: null }) });
+      } catch (error) {
+        calendarSyncError = error.message || "Calendar sync failed.";
+        [task] = await supabaseRest(`crm_tasks?id=eq.${encodeURIComponent(task.id)}`, { method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify({ calendar_owner_email: ownerEmail, calendar_sync_error: calendarSyncError }) });
+      }
+      return res.status(201).json({ task, calendarSynced: Boolean(task.google_calendar_event_id), calendarSyncError });
     }
 
     if (action === "setTaskStatus") {
@@ -68,7 +86,9 @@ module.exports = async function handler(req, res) {
     }
 
     if (action === "deleteTask") {
-      if (!await requireTaskAccess(user, data.id, res)) return;
+      const task = await requireTaskAccess(user, data.id, res);
+      if (!task) return;
+      try { await deleteCalendarTaskEvent(task.calendar_owner_email, task.google_calendar_event_id); } catch (error) { console.warn("Calendar event cleanup failed:", error.message); }
       await supabaseRest(`crm_tasks?id=eq.${encodeURIComponent(data.id)}`, { method: "DELETE" });
       return res.status(200).json({ ok: true });
     }
