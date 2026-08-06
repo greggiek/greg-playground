@@ -1,5 +1,5 @@
-const { gmailSupabaseRest } = require("../../_supabase");
-const { env, verifyState, encryptToken } = require("../../_google");
+const { gmailSupabaseRest } = require("../../../lib/supabase");
+const { env, verifyState, encryptToken } = require("../../../lib/google");
 
 function appUrl(req) {
   const host = req.headers["x-forwarded-host"] || req.headers.host;
