@@ -1,0 +1,9 @@
+{
+  "name": "BM Time",
+  "short_name": "BM Time",
+  "start_url": "/kiosk",
+  "display": "standalone",
+  "background_color": "#f5f6f7",
+  "theme_color": "#151515",
+  "orientation": "portrait"
+}

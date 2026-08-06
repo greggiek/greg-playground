@@ -1,8 +1,24 @@
 {
-  "name": "bargain-prospect-crm",
-  "version": "1.0.0",
+  "name": "bm-time",
+  "version": "0.2.0",
   "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
   "dependencies": {
-    "read-excel-file": "9.3.5"
+    "@supabase/supabase-js": "^2.55.0",
+    "bcryptjs": "^3.0.2",
+    "next": "^15.4.6",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "zod": "^4.0.17"
+  },
+  "devDependencies": {
+    "@types/node": "^22.17.1",
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "typescript": "^5.9.2"
   }
 }

@@ -1,0 +1,1 @@
+export default function Home(){return <main className="shell"><section className="card homeCard"><div className="brand">BM TIME</div><p>Simple location-based employee time clock.</p><div className="homeLinks"><a href="/kiosk">Open Employee Kiosk</a><a href="/manager">Open Manager Dashboard</a></div></section></main>}
