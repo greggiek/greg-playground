@@ -2,8 +2,8 @@ const { requireCrmAccess, requireManager } = require("../lib/auth");
 const { supabaseRest } = require("../lib/supabase");
 
 module.exports = async function handler(req, res) {
-  const user = requireCrmAccess(req, res);
-  if (!user || !requireManager(req, res)) return;
+  const user = await requireCrmAccess(req, res);
+  if (!user || !(await requireManager(req, res))) return;
   try {
     if (req.method === "GET") {
       const templates = await supabaseRest("crm_email_templates?select=*&order=updated_at.desc");
