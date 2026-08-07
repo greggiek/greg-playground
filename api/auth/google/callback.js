@@ -1,4 +1,5 @@
-const { gmailSupabaseRest } = require("../../../lib/supabase");
+const { gmailSupabaseRest, supabaseRest } = require("../../../lib/supabase");
+const { sessionCookie } = require("../../../lib/auth");
 const { env, verifyState, encryptToken } = require("../../../lib/google");
 
 function appUrl(req) {
@@ -7,12 +8,18 @@ function appUrl(req) {
   return `${protocol}://${host}`;
 }
 
+function cookieValue(req, name) {
+  const match = String(req.headers.cookie || "").split(";").map((part) => part.trim()).find((part) => part.startsWith(`${name}=`));
+  return match ? decodeURIComponent(match.slice(name.length + 1)) : "";
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).send("Method not allowed.");
   const destination = new URL(appUrl(req));
   try {
     if (req.query.error) throw new Error(`Google authorization was cancelled: ${req.query.error}`);
     const state = verifyState(req.query.state);
+    if (!state.nonce || cookieValue(req, "bargain_oauth_nonce") !== state.nonce) throw new Error("Google sign-in session expired. Please try again.");
     if (!req.query.code) throw new Error("Google did not return an authorization code.");
     const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
@@ -33,9 +40,13 @@ module.exports = async function handler(req, res) {
     });
     const googleUser = await userResponse.json();
     if (!userResponse.ok) throw new Error("Could not verify the connected Google account.");
-    const expectedEmail = String(state.email || "").toLowerCase();
-    if (!expectedEmail) throw new Error("CRM user email is missing. Sign in and try again.");
-    if (String(googleUser.email || "").toLowerCase() !== expectedEmail) throw new Error(`Please connect ${expectedEmail}, not ${googleUser.email || "that account"}.`);
+    if (!googleUser.email_verified) throw new Error("Google could not verify this email address.");
+    const googleEmail = String(googleUser.email || "").toLowerCase();
+    const expectedEmail = String(state.email || googleEmail).toLowerCase();
+    if (googleEmail !== expectedEmail) throw new Error(`Please connect ${expectedEmail}, not ${googleUser.email || "that account"}.`);
+    const users = await supabaseRest(`crm_users?email=eq.${encodeURIComponent(googleEmail)}&active=eq.true&select=id,name,email,role&limit=1`);
+    const crmUser = users?.[0];
+    if (!crmUser) throw new Error(`${googleEmail} is not an active Bargain CRM user. Ask a manager to add this account.`);
     await gmailSupabaseRest("crm_gmail_connections?on_conflict=email", {
       method: "POST",
       headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
@@ -47,6 +58,9 @@ module.exports = async function handler(req, res) {
         updated_at: new Date().toISOString(),
       }),
     });
+    res.setHeader("Set-Cookie", [sessionCookie(crmUser), "bargain_oauth_nonce=; Path=/api/auth/google/callback; HttpOnly; Secure; SameSite=Lax; Max-Age=0"]);
+    res.setHeader("Cache-Control", "private, no-store");
+    destination.searchParams.set("login", "connected");
     destination.searchParams.set("gmail", "connected");
   } catch (error) {
     destination.searchParams.set("gmail", "error");
