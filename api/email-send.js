@@ -16,7 +16,17 @@ function validRecipient(item) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? { email, name: String(item?.name || item?.recipientName || "").trim() } : null;
 }
 
-async function sendOne({ req, accessToken, campaignId, recipient, subject, plainBody, senderEmail }) {
+function optionalHttpUrl(value, label) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (raw.length > 2000) throw new Error(`${label} is too long.`);
+  let parsed;
+  try { parsed = new URL(raw); } catch { throw new Error(`${label} must be a complete URL.`); }
+  if (!["http:", "https:"].includes(parsed.protocol)) throw new Error(`${label} must start with http:// or https://.`);
+  return parsed.toString();
+}
+
+async function sendOne({ req, accessToken, campaignId, recipient, subject, plainBody, senderEmail, imageUrl, imageLinkUrl, imageAlt }) {
   const messageId = crypto.randomUUID();
   const openToken = crypto.randomUUID();
   const unsubscribeToken = crypto.randomUUID();
@@ -28,15 +38,23 @@ async function sendOne({ req, accessToken, campaignId, recipient, subject, plain
     links.push({ id: crypto.randomUUID(), message_id: messageId, token, url: cleanUrl });
     return `<a href="${origin}/api/email-track?type=click&token=${token}">${escapeHtml(cleanUrl)}</a>${escapeHtml(url.slice(cleanUrl.length))}`;
   }).replaceAll("\n", "<br>");
+  const imageTag = imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(imageAlt)}" style="display:block;max-width:100%;height:auto;border:0;border-radius:10px">` : "";
+  let imageHtml = imageTag ? `<div style="margin:24px 0">${imageTag}</div>` : "";
+  if (imageTag && imageLinkUrl) {
+    const token = crypto.randomUUID();
+    links.push({ id: crypto.randomUUID(), message_id: messageId, token, url: imageLinkUrl });
+    imageHtml = `<div style="margin:24px 0"><a href="${origin}/api/email-track?type=click&token=${token}" style="display:inline-block">${imageTag}</a></div>`;
+  }
   const unsubscribeUrl = `${origin}/api/email-track?type=unsubscribe&token=${unsubscribeToken}`;
-  const html = `${escaped}<hr style="margin-top:28px;border:0;border-top:1px solid #ddd"><p style="font-size:12px;color:#666">Bargain Moulding · <a href="${unsubscribeUrl}">Unsubscribe</a></p><img src="${origin}/api/email-track?type=open&token=${openToken}" width="1" height="1" alt="" style="display:block;border:0;width:1px;height:1px">`;
+  const html = `${escaped}${imageHtml}<hr style="margin-top:28px;border:0;border-top:1px solid #ddd"><p style="font-size:12px;color:#666">Bargain Moulding · <a href="${unsubscribeUrl}">Unsubscribe</a></p><img src="${origin}/api/email-track?type=open&token=${openToken}" width="1" height="1" alt="" style="display:block;border:0;width:1px;height:1px">`;
+  const imagePlainText = imageLinkUrl ? `\n\n${imageAlt || "View image"}: ${imageLinkUrl}` : "";
   const boundary = `bargain_${crypto.randomBytes(12).toString("hex")}`;
   const mime = [
     `From: ${req.crmUser.name.replace(/[\r\n]/g, "")} at Bargain Moulding <${senderEmail}>`,
     `To: ${recipient.name ? `${recipient.name.replace(/[\r\n]/g, "")} <${recipient.email}>` : recipient.email}`,
     `Subject: ${subject.replace(/[\r\n]/g, " ")}`,
     "MIME-Version: 1.0", `Content-Type: multipart/alternative; boundary="${boundary}"`, "",
-    `--${boundary}`, "Content-Type: text/plain; charset=UTF-8", "", `${plainBody}\n\nUnsubscribe: ${unsubscribeUrl}`,
+    `--${boundary}`, "Content-Type: text/plain; charset=UTF-8", "", `${plainBody}${imagePlainText}\n\nUnsubscribe: ${unsubscribeUrl}`,
     `--${boundary}`, "Content-Type: text/html; charset=UTF-8", "", html, `--${boundary}--`, "",
   ].join("\r\n");
 
@@ -60,12 +78,22 @@ module.exports = async function handler(req, res) {
   const subject = String(req.body?.subject || "").trim();
   const plainBody = String(req.body?.body || "").trim();
   const campaignName = String(req.body?.campaignName || subject || "Email campaign").trim();
+  let imageUrl;
+  let imageLinkUrl;
+  try {
+    imageUrl = optionalHttpUrl(req.body?.imageUrl, "Image URL");
+    imageLinkUrl = optionalHttpUrl(req.body?.imageLinkUrl, "Image link");
+  } catch (error) {
+    return res.status(400).json({ error: error.message });
+  }
+  const imageAlt = String(req.body?.imageAlt || "").trim();
   const rawRecipients = Array.isArray(req.body?.recipients) ? req.body.recipients : [req.body];
   const unique = new Map(rawRecipients.map(validRecipient).filter(Boolean).map((item) => [item.email, item]));
   const recipients = [...unique.values()];
   if (!recipients.length || !subject || !plainBody) return res.status(400).json({ error: "At least one valid recipient, a subject, and a message are required." });
   if (recipients.length > 25) return res.status(400).json({ error: "Campaigns are limited to 25 recipients during beta." });
-  if (subject.length > 300 || plainBody.length > 20000 || campaignName.length > 120) return res.status(400).json({ error: "Campaign content is too long." });
+  if (imageLinkUrl && !imageUrl) return res.status(400).json({ error: "Add an image URL before adding an image link." });
+  if (subject.length > 300 || plainBody.length > 20000 || campaignName.length > 120 || imageAlt.length > 300) return res.status(400).json({ error: "Campaign content is too long." });
 
   try {
     const unsubscribedRows = await gmailSupabaseRest("crm_email_unsubscribes?select=email");
@@ -77,7 +105,7 @@ module.exports = async function handler(req, res) {
     await gmailSupabaseRest("crm_email_campaigns", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ id: campaignId, sender_email: senderEmail, name: campaignName, subject, body: plainBody, status: "sending", total_recipients: eligible.length, created_by: req.crmUser.name }) });
     const accessToken = await gmailAccessToken(senderEmail);
     const results = [];
-    for (const recipient of eligible) results.push(await sendOne({ req, accessToken, campaignId, recipient, subject, plainBody, senderEmail }));
+    for (const recipient of eligible) results.push(await sendOne({ req, accessToken, campaignId, recipient, subject, plainBody, senderEmail, imageUrl, imageLinkUrl, imageAlt }));
     const failures = results.filter((item) => item.status === "failed").length;
     await gmailSupabaseRest(`crm_email_campaigns?id=eq.${campaignId}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ status: failures ? "completed_with_errors" : "completed", completed_at: new Date().toISOString() }) });
     return res.status(200).json({ ok: true, campaignId, sent: results.length - failures, failed: failures, skippedUnsubscribed: recipients.length - eligible.length, results });

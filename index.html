@@ -201,6 +201,16 @@
               <input id="emailTemplateSubject" placeholder="Email subject" maxlength="300" />
               <label class="field-label template-field" for="emailTemplateBody">Message</label>
               <textarea id="emailTemplateBody" rows="12" maxlength="20000" placeholder="Write the email message…"></textarea>
+              <section class="email-image-editor" aria-labelledby="emailImageHeading">
+                <div><p class="eyebrow">OPTIONAL</p><h3 id="emailImageHeading">Clickable Image</h3></div>
+                <div class="form-grid email-image-fields">
+                  <label>Image URL<input id="emailTemplateImageUrl" type="url" maxlength="2000" placeholder="https://example.com/promotion.jpg" /></label>
+                  <label>Click-through Link<input id="emailTemplateImageLink" type="url" maxlength="2000" placeholder="https://bargainmoulding.com/sale" /></label>
+                </div>
+                <label class="field-label" for="emailTemplateImageAlt">Alt Text</label>
+                <input id="emailTemplateImageAlt" maxlength="300" placeholder="August door promotion" />
+                <div id="emailImagePreview" class="email-image-preview" hidden></div>
+              </section>
               <p class="status-text">Campaigns are limited to 25 recipients during beta. Every recipient gets a private tracked email and an unsubscribe link. Opens are approximate because some mail apps block or pre-load images.</p>
               <div class="button-row">
                 <button id="saveEmailTemplateBtn" class="btn btn-primary" type="button">Save Template</button>

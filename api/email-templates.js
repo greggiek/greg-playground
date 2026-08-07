@@ -1,6 +1,16 @@
 const { requireCrmAccess, requireManager } = require("../lib/auth");
 const { supabaseRest } = require("../lib/supabase");
 
+function optionalHttpUrl(value, label) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (raw.length > 2000) throw new Error(`${label} is too long.`);
+  let parsed;
+  try { parsed = new URL(raw); } catch { throw new Error(`${label} must be a complete URL.`); }
+  if (!["http:", "https:"].includes(parsed.protocol)) throw new Error(`${label} must start with http:// or https://.`);
+  return parsed.toString();
+}
+
 module.exports = async function handler(req, res) {
   const user = await requireCrmAccess(req, res);
   if (!user || !(await requireManager(req, res))) return;
@@ -15,9 +25,13 @@ module.exports = async function handler(req, res) {
       const name = String(data.name || "").trim();
       const subject = String(data.subject || "").trim();
       const body = String(data.body || "").trim();
+      const imageUrl = optionalHttpUrl(data.imageUrl, "Image URL");
+      const imageLinkUrl = optionalHttpUrl(data.imageLinkUrl, "Image link");
+      const imageAlt = String(data.imageAlt || "").trim();
       if (!name || !subject || !body) return res.status(400).json({ error: "Template name, subject, and message are required." });
-      if (name.length > 120 || subject.length > 300 || body.length > 20000) return res.status(400).json({ error: "Template content is too long." });
-      const payload = { name, subject, body, created_by: user.name, updated_at: new Date().toISOString() };
+      if (imageLinkUrl && !imageUrl) return res.status(400).json({ error: "Add an image URL before adding an image link." });
+      if (name.length > 120 || subject.length > 300 || body.length > 20000 || imageAlt.length > 300) return res.status(400).json({ error: "Template content is too long." });
+      const payload = { name, subject, body, image_url: imageUrl || null, image_link_url: imageLinkUrl || null, image_alt: imageAlt, created_by: user.name, updated_at: new Date().toISOString() };
       const path = data.id ? `crm_email_templates?id=eq.${encodeURIComponent(data.id)}` : "crm_email_templates";
       const method = data.id ? "PATCH" : "POST";
       const rows = await supabaseRest(path, { method, headers: { Prefer: "return=representation" }, body: JSON.stringify(payload) });
