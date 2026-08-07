@@ -342,6 +342,13 @@ dialog label { display: grid; gap: 7px; margin-top: 14px; font-weight: 800; }
 .recipient-summary { margin-top: 14px; padding: 13px 15px; border-radius: 12px; background: #fff8db; border: 1px solid #f0dc88; font-weight: 900; }
 .recipient-preview { margin-top: 8px; color: var(--muted); font-size: .82rem; line-height: 1.5; max-height: 90px; overflow: auto; }
 .template-field { margin-top: 14px; }
+.email-image-editor { margin-top: 18px; padding: 16px; border: 1px solid var(--border); border-radius: 16px; background: #f8fafc; }
+.email-image-editor h3 { margin: 0; }
+.email-image-fields { margin-top: 12px; }
+.email-image-fields label { display: grid; gap: 7px; font-weight: 800; }
+.email-image-preview { margin-top: 14px; padding: 12px; border: 1px dashed var(--border); border-radius: 13px; background: var(--card); }
+.email-image-preview img { display: block; max-width: 100%; max-height: 320px; width: auto; height: auto; margin: auto; border-radius: 10px; }
+.email-image-preview a { display: block; }
 .saved-templates { margin-top: 12px; }
 .saved-template-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px; }
 .saved-template-card strong { display: block; margin-bottom: 5px; }
