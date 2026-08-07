@@ -913,7 +913,35 @@ function clearEmailTemplate() {
   $("#emailTemplateName").value = "";
   $("#emailTemplateSubject").value = "";
   $("#emailTemplateBody").value = "";
+  $("#emailTemplateImageUrl").value = "";
+  $("#emailTemplateImageLink").value = "";
+  $("#emailTemplateImageAlt").value = "";
+  renderEmailImagePreview();
   $("#saveEmailTemplateBtn").textContent = "Save Template";
+}
+
+function renderEmailImagePreview() {
+  const preview = $("#emailImagePreview");
+  const imageUrl = $("#emailTemplateImageUrl").value.trim();
+  const imageLinkUrl = $("#emailTemplateImageLink").value.trim();
+  const imageAlt = $("#emailTemplateImageAlt").value.trim();
+  preview.replaceChildren();
+  preview.hidden = !imageUrl;
+  if (!imageUrl) return;
+  const image = document.createElement("img");
+  image.src = imageUrl;
+  image.alt = imageAlt;
+  image.addEventListener("error", () => { preview.textContent = "Image preview could not be loaded. Check the image URL."; });
+  if (imageLinkUrl) {
+    const link = document.createElement("a");
+    link.href = imageLinkUrl;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.appendChild(image);
+    preview.appendChild(link);
+  } else {
+    preview.appendChild(image);
+  }
 }
 
 function renderEmailTemplates() {
@@ -921,6 +949,7 @@ function renderEmailTemplates() {
     <article class="saved-template-card">
       <strong>${escapeHtml(template.name)}</strong>
       <div class="card-meta">${escapeHtml(template.subject)}</div>
+      ${template.image_url ? `<div class="card-meta">Includes clickable image</div>` : ""}
       <div class="button-row">
         <button class="btn btn-small btn-secondary" type="button" data-load-email-template="${template.id}">Load</button>
         <button class="btn btn-small btn-danger" type="button" data-delete-email-template="${template.id}">Delete</button>
@@ -933,6 +962,10 @@ function renderEmailTemplates() {
     $("#emailTemplateName").value = template.name;
     $("#emailTemplateSubject").value = template.subject;
     $("#emailTemplateBody").value = template.body;
+    $("#emailTemplateImageUrl").value = template.image_url || "";
+    $("#emailTemplateImageLink").value = template.image_link_url || "";
+    $("#emailTemplateImageAlt").value = template.image_alt || "";
+    renderEmailImagePreview();
     $("#saveEmailTemplateBtn").textContent = "Update Template";
   }));
   document.querySelectorAll("[data-delete-email-template]").forEach((button) => button.addEventListener("click", async () => {
@@ -1031,15 +1064,18 @@ async function sendTrackedEmail() {
   const campaignName = $("#emailCampaignName").value.trim();
   const subject = $("#emailTemplateSubject").value.trim();
   const body = $("#emailTemplateBody").value.trim();
+  const imageUrl = $("#emailTemplateImageUrl").value.trim();
+  const imageLinkUrl = $("#emailTemplateImageLink").value.trim();
+  const imageAlt = $("#emailTemplateImageAlt").value.trim();
   if (!audience.length) return alert("Choose at least one recipient.");
   if (audience.length > 25) return alert("Campaigns are limited to 25 recipients during beta. Narrow the audience first.");
   if (!subject || !body) return alert("Add a subject and message first.");
   const recipientList = audience.map((recipient) => `${recipient.contactName || recipient.companyName} <${recipient.email}>`).join("\n");
-  if (!confirm(`Send this real tracked campaign now?\n\nCampaign: ${campaignName || subject}\nSubject: ${subject}\nRecipients (${audience.length}):\n${recipientList}\n\nEach recipient receives a separate email.`)) return;
+  if (!confirm(`Send this real tracked campaign now?\n\nCampaign: ${campaignName || subject}\nSubject: ${subject}${imageUrl ? "\nImage: included" : ""}\nRecipients (${audience.length}):\n${recipientList}\n\nEach recipient receives a separate email.`)) return;
   const button = $("#sendTrackedEmailBtn");
   button.disabled = true;
   try {
-    const response = await crmFetch("/api/email-send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ campaignName: campaignName || subject, recipients: audience.map((recipient) => ({ email: recipient.email, name: recipient.contactName || recipient.companyName })), subject, body }) });
+    const response = await crmFetch("/api/email-send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ campaignName: campaignName || subject, recipients: audience.map((recipient) => ({ email: recipient.email, name: recipient.contactName || recipient.companyName })), subject, body, imageUrl, imageLinkUrl, imageAlt }) });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "Email send failed.");
     alert(`Campaign complete: ${result.sent} sent, ${result.failed} failed, ${result.skippedUnsubscribed} skipped because they unsubscribed.`);
@@ -1076,11 +1112,14 @@ async function saveEmailTemplate() {
   const name = $("#emailTemplateName").value.trim();
   const subject = $("#emailTemplateSubject").value.trim();
   const body = $("#emailTemplateBody").value.trim();
+  const imageUrl = $("#emailTemplateImageUrl").value.trim();
+  const imageLinkUrl = $("#emailTemplateImageLink").value.trim();
+  const imageAlt = $("#emailTemplateImageAlt").value.trim();
   if (!name || !subject || !body) return alert("Add a template name, subject, and message.");
   const button = $("#saveEmailTemplateBtn");
   button.disabled = true;
   try {
-    const result = await emailTemplateAction("save", { id: editingEmailTemplateId, name, subject, body });
+    const result = await emailTemplateAction("save", { id: editingEmailTemplateId, name, subject, body, imageUrl, imageLinkUrl, imageAlt });
     editingEmailTemplateId = result.template.id;
     button.textContent = "Update Template";
     await loadEmailTemplates();
@@ -1199,6 +1238,7 @@ $("#stageFilter").addEventListener("change", renderHome);
 $("#exportBtn").addEventListener("click", exportCsv);
 $("#bulkEmailStage").addEventListener("change", updateBulkEmailAudience);
 $("#bulkEmailOwner").addEventListener("change", updateBulkEmailAudience);
+[$("#emailTemplateImageUrl"), $("#emailTemplateImageLink"), $("#emailTemplateImageAlt")].forEach((input) => input.addEventListener("input", renderEmailImagePreview));
 $("#saveEmailTemplateBtn").addEventListener("click", saveEmailTemplate);
 $("#clearEmailTemplateBtn").addEventListener("click", clearEmailTemplate);
 $("#prepareBulkEmailBtn").addEventListener("click", prepareBulkEmail);
