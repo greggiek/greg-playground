@@ -1,10 +1,34 @@
 const { requireCrmAccess, requireManager } = require("../lib/auth");
 const { supabaseRest } = require("../lib/supabase");
 const { createCalendarTaskEvent, deleteCalendarTaskEvent } = require("../lib/google");
+const crypto = require("crypto");
 
 const OWNERS = new Set(["Greg", "Craig", "Rep 1"]);
 function validOwner(value) { return OWNERS.has(value) ? value : "Greg"; }
 function isManager(user) { return user.role === "manager"; }
+
+function after(value, cutoff) { return value && new Date(value) >= cutoff; }
+
+async function teamActivitySnapshot(prospects, tasks) {
+  const [users, connections, messages] = await Promise.all([
+    supabaseRest("crm_users?select=id,name,email,role,active,created_at,last_login_at&order=name.asc"),
+    supabaseRest("crm_gmail_connections?select=email,scopes,connected_at"),
+    supabaseRest("crm_email_messages?select=sender_email,status,sent_at,created_at&order=created_at.desc&limit=5000"),
+  ]);
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const today = new Date().toISOString().slice(0, 10);
+  const activities = prospects.flatMap((prospect) => prospect.crm_activities || []);
+  const quotes = prospects.flatMap((prospect) => prospect.crm_quotes || []);
+  return users.map((member) => {
+    const memberTasks = tasks.filter((task) => task.assigned_to === member.name);
+    const recentActivities = activities.filter((activity) => activity.user_name === member.name && after(activity.created_at, cutoff));
+    const recentQuotes = quotes.filter((quote) => quote.created_by === member.name && after(quote.created_at, cutoff));
+    const recentEmails = messages.filter((message) => message.sender_email?.toLowerCase() === member.email.toLowerCase() && message.status === "sent" && after(message.sent_at || message.created_at, cutoff));
+    const timestamps = [member.last_login_at, ...recentActivities.map((item) => item.created_at), ...recentQuotes.map((item) => item.created_at), ...recentEmails.map((item) => item.sent_at || item.created_at), ...memberTasks.map((item) => item.completed_at || item.created_at)].filter(Boolean).sort();
+    const connection = connections.find((item) => item.email.toLowerCase() === member.email.toLowerCase());
+    return { ...member, contactsOwned: prospects.filter((item) => item.owner_name === member.name).length, openTasks: memberTasks.filter((item) => item.status === "open").length, overdueTasks: memberTasks.filter((item) => item.status === "open" && item.due_date < today).length, completedTasks30: memberTasks.filter((item) => item.status === "completed" && after(item.completed_at, cutoff)).length, activities30: recentActivities.length, quotes30: recentQuotes.length, emails30: recentEmails.length, lastActivityAt: timestamps.at(-1) || null, googleConnected: Boolean(connection), calendarConnected: Boolean(connection?.scopes?.some((scope) => scope.includes("calendar"))) };
+  });
+}
 
 async function getProspect(id) {
   if (!id) return null;
@@ -51,10 +75,32 @@ module.exports = async function handler(req, res) {
       const prospects = await supabaseRest(`crm_prospects?${ownerFilter}select=${select}&order=created_at.desc`);
       const taskFilter = isManager(user) ? "" : `assigned_to=eq.${encodeURIComponent(user.name)}&`;
       const tasks = await supabaseRest(`crm_tasks?${taskFilter}select=*&order=due_date.asc,created_at.asc`);
-      return res.status(200).json({ prospects, tasks, currentUser: user });
+      const teamSnapshot = isManager(user) ? await teamActivitySnapshot(prospects, tasks) : [];
+      return res.status(200).json({ prospects, tasks, currentUser: user, teamSnapshot });
     }
     if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
     const { action, data = {} } = req.body || {};
+
+    if (action === "createUser") {
+      if (!(await requireManager(req, res))) return;
+      const name = String(data.name || "").trim();
+      const email = String(data.email || "").trim().toLowerCase();
+      const role = data.role === "manager" ? "manager" : "sales_rep";
+      if (!name || !/^[^@\s]+@bargainmoulding\.com$/i.test(email)) return res.status(400).json({ error: "Enter a name and a valid @bargainmoulding.com email." });
+      const [member] = await supabaseRest("crm_users", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify({ name, email, role, active: true, access_code_hash: crypto.createHash("sha256").update(crypto.randomUUID()).digest("hex") }) });
+      return res.status(201).json({ member });
+    }
+
+    if (action === "updateUser") {
+      if (!(await requireManager(req, res))) return;
+      if (!data.id) return res.status(400).json({ error: "User ID is required." });
+      const role = data.role === "manager" ? "manager" : "sales_rep";
+      const active = data.active !== false;
+      if (data.id === user.id && (!active || role !== "manager")) return res.status(400).json({ error: "You cannot deactivate or demote your own manager account." });
+      const [member] = await supabaseRest(`crm_users?id=eq.${encodeURIComponent(data.id)}`, { method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify({ role, active, updated_at: new Date().toISOString() }) });
+      if (!member) return res.status(404).json({ error: "User not found." });
+      return res.status(200).json({ member });
+    }
 
     if (action === "createTask") {
       const title = String(data.title || "").trim();
