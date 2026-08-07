@@ -47,6 +47,7 @@ module.exports = async function handler(req, res) {
     const users = await supabaseRest(`crm_users?email=eq.${encodeURIComponent(googleEmail)}&active=eq.true&select=id,name,email,role&limit=1`);
     const crmUser = users?.[0];
     if (!crmUser) throw new Error(`${googleEmail} is not an active Bargain CRM user. Ask a manager to add this account.`);
+    await supabaseRest(`crm_users?id=eq.${encodeURIComponent(crmUser.id)}`, { method: "PATCH", body: JSON.stringify({ last_login_at: new Date().toISOString(), updated_at: new Date().toISOString() }) });
     await gmailSupabaseRest("crm_gmail_connections?on_conflict=email", {
       method: "POST",
       headers: { Prefer: "resolution=merge-duplicates,return=minimal" },

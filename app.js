@@ -12,6 +12,7 @@ let contactsPage = 1;
 let contactsMineOnly = false;
 let homeEmailMessages = [];
 let agendaView = "week";
+let teamSnapshot = [];
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -60,6 +61,7 @@ async function refreshCrm(openId) {
   showCrm();
   applyProfilePermissions();
   state = { prospects: (body.prospects || []).map(fromDbProspect), tasks: (body.tasks || []).map(fromDbTask) };
+  teamSnapshot = body.teamSnapshot || [];
   saveState();
   renderHome();
   loadGoogleConnection().catch(() => {});
@@ -112,6 +114,7 @@ function applyProfilePermissions() {
   $("#profileBadge").hidden = false;
   $("#profileBadge").textContent = `${currentUser.name} · ${manager ? "Manager" : "Sales Rep"}`;
   $("#switchUserBtn").hidden = false;
+  $("#teamBtn").hidden = !manager;
   $("#campaignsBtn").hidden = !manager;
   $("#bulkEmailBtn").hidden = !manager;
   $("#importProspectsBtn").hidden = !manager;
@@ -997,6 +1000,32 @@ async function openCampaignDashboard() {
   try { await loadEmailAnalytics(); } catch (error) { $("#campaignDashboardStatus").textContent = error.message; }
 }
 
+function initials(name) {
+  return String(name || "?").split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+}
+
+function renderTeamSnapshot() {
+  const active = teamSnapshot.filter((member) => member.active);
+  $("#teamActiveCount").textContent = active.length;
+  $("#teamOpenTasks").textContent = active.reduce((sum, member) => sum + member.openTasks, 0);
+  $("#teamOverdueTasks").textContent = active.reduce((sum, member) => sum + member.overdueTasks, 0);
+  $("#teamEmailsSent").textContent = active.reduce((sum, member) => sum + member.emails30, 0);
+  $("#teamCards").innerHTML = teamSnapshot.length ? teamSnapshot.map((member) => `
+    <article class="team-member-card ${member.active ? "" : "inactive"}">
+      <div class="team-member-top"><div class="team-identity"><span class="team-avatar">${escapeHtml(initials(member.name))}</span><div><strong>${escapeHtml(member.name)}</strong><small>${escapeHtml(member.email)}</small><small>${member.lastActivityAt ? `Last active ${escapeHtml(formatDateTime(member.lastActivityAt))}` : "No activity yet"}</small></div></div><span class="badge">${member.active ? "Active" : "Inactive"}</span></div>
+      <div class="team-metrics"><div class="team-metric"><strong>${member.contactsOwned}</strong><span>Contacts</span></div><div class="team-metric"><strong>${member.openTasks}</strong><span>Open tasks</span></div><div class="team-metric"><strong>${member.completedTasks30}</strong><span>Completed</span></div><div class="team-metric"><strong>${member.activities30}</strong><span>Activities</span></div><div class="team-metric"><strong>${member.quotes30}</strong><span>Quotes</span></div><div class="team-metric"><strong>${member.emails30}</strong><span>Emails</span></div><div class="team-metric"><strong>${member.overdueTasks}</strong><span>Overdue</span></div><div class="team-metric"><strong>${member.last_login_at ? "Yes" : "No"}</strong><span>Logged in</span></div></div>
+      <div class="team-member-footer"><div class="team-connection"><span class="badge">${member.googleConnected ? "Google ✓" : "Google —"}</span><span class="badge">${member.calendarConnected ? "Calendar ✓" : "Calendar —"}</span></div><div class="team-controls"><select data-team-role="${member.id}" aria-label="Role for ${escapeHtml(member.name)}"><option value="sales_rep"${member.role === "sales_rep" ? " selected" : ""}>Salesperson</option><option value="manager"${member.role === "manager" ? " selected" : ""}>Manager</option></select><button class="btn btn-small ${member.active ? "btn-danger" : "btn-secondary"}" data-team-active="${member.id}" data-active="${member.active}" type="button">${member.active ? "Deactivate" : "Reactivate"}</button></div></div>
+    </article>`).join("") : `<div class="empty">No CRM users yet.</div>`;
+  document.querySelectorAll("[data-team-role]").forEach((select) => select.addEventListener("change", async () => { try { const member = teamSnapshot.find((item) => item.id === select.dataset.teamRole); await crmAction("updateUser", { id: member.id, role: select.value, active: member.active }); await refreshCrm(); renderTeamSnapshot(); } catch (error) { alert(error.message); } }));
+  document.querySelectorAll("[data-team-active]").forEach((button) => button.addEventListener("click", async () => { const member = teamSnapshot.find((item) => item.id === button.dataset.teamActive); if (member.active && !confirm(`Deactivate ${member.name}? They will immediately lose CRM access.`)) return; try { await crmAction("updateUser", { id: member.id, role: member.role, active: !member.active }); await refreshCrm(); renderTeamSnapshot(); } catch (error) { alert(error.message); } }));
+}
+
+function openTeamDashboard() {
+  if (!isManager()) return;
+  renderTeamSnapshot();
+  showView("teamView");
+}
+
 async function sendTrackedEmail() {
   const audience = bulkEmailAudience();
   const campaignName = $("#emailCampaignName").value.trim();
@@ -1109,6 +1138,8 @@ $("#passcodeLoginForm").addEventListener("submit", async (event) => {
   try { await refreshCrm(); } catch (error) { sessionStorage.removeItem("bargainCrmAccessCode"); showLogin(error.message); }
 });
 $("#contactsBtn").addEventListener("click", openContacts);
+$("#teamBtn").addEventListener("click", openTeamDashboard);
+$("#addTeamMemberBtn").addEventListener("click", () => { $("#teamMemberForm").reset(); $("#teamMemberDialog").showModal(); });
 $("#activityTypeFilter").addEventListener("change", renderHomeActivity);
 $("#createTaskBtn").addEventListener("click", () => {
   const form = $("#taskForm");
@@ -1190,6 +1221,22 @@ document.querySelectorAll("[data-close-dialog]").forEach((btn) =>
 );
 
 document.querySelectorAll("[data-close-task]").forEach((btn) => btn.addEventListener("click", () => $("#taskDialog").close()));
+document.querySelectorAll("[data-close-team-member]").forEach((btn) => btn.addEventListener("click", () => $("#teamMemberDialog").close()));
+
+$("#teamMemberForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = new FormData(form);
+  const button = form.querySelector('[type="submit"]');
+  button.disabled = true;
+  try {
+    await crmAction("createUser", { name: String(data.get("name") || "").trim(), email: String(data.get("email") || "").trim(), role: String(data.get("role") || "sales_rep") });
+    $("#teamMemberDialog").close();
+    await refreshCrm();
+    renderTeamSnapshot();
+    showToast("CRM user added", "They can now sign in with their company Google account.");
+  } catch (error) { alert(error.message); } finally { button.disabled = false; }
+});
 
 $("#taskForm").addEventListener("submit", async (event) => {
   event.preventDefault();

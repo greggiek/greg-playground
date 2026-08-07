@@ -33,6 +33,7 @@
         <span id="profileBadge" class="profile-badge" hidden></span>
         <button id="switchUserBtn" class="btn btn-secondary" type="button" hidden>Switch User</button>
         <button id="contactsBtn" class="btn btn-secondary" type="button">Contacts</button>
+        <button id="teamBtn" class="btn btn-secondary" type="button" hidden>Team</button>
         <button id="campaignsBtn" class="btn btn-secondary" type="button" hidden>Campaigns</button>
         <button id="bulkEmailBtn" class="btn btn-secondary" type="button" hidden>Bulk Email</button>
         <button id="importProspectsBtn" class="btn btn-secondary" hidden>Import</button>
@@ -91,6 +92,13 @@
           </div>
           <div id="prospectList" class="card-list"></div>
         </section>
+      </section>
+
+      <section id="teamView" class="view">
+        <button class="back-link" data-back>← Dashboard</button>
+        <div class="team-page-heading"><div><p class="eyebrow">MANAGER CONTROL CENTER</p><h2>Team Activity</h2><p class="status-text">A 30-day snapshot of CRM work and account access.</p></div><button id="addTeamMemberBtn" class="btn btn-primary" type="button">+ Add User</button></div>
+        <div class="stats-grid team-stats"><article class="stat-card"><span>Active Users</span><strong id="teamActiveCount">0</strong></article><article class="stat-card"><span>Open Tasks</span><strong id="teamOpenTasks">0</strong></article><article class="stat-card"><span>Overdue</span><strong id="teamOverdueTasks">0</strong></article><article class="stat-card"><span>Emails Sent · 30d</span><strong id="teamEmailsSent">0</strong></article></div>
+        <div id="teamCards" class="team-card-grid"></div>
       </section>
 
       <section id="campaignsView" class="view">
@@ -268,6 +276,17 @@
       <label>Associated Contact<select name="prospectId"><option value="">No associated contact</option></select></label>
       <label>Notes<textarea name="notes" rows="4" maxlength="2000"></textarea></label>
       <div class="button-row"><button class="btn btn-primary" type="submit">Save Task</button><button class="btn btn-secondary" type="button" data-close-task>Cancel</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="teamMemberDialog">
+    <form id="teamMemberForm" method="dialog">
+      <div class="dialog-header"><div><p class="eyebrow">USER MANAGEMENT</p><h2>Add CRM User</h2></div><button type="button" class="icon-btn" data-close-team-member aria-label="Close">×</button></div>
+      <label>Full Name<input name="name" required maxlength="100" placeholder="Edwin Smith" /></label>
+      <label>Company Email<input name="email" type="email" required placeholder="edwin@bargainmoulding.com" /></label>
+      <label>Permission Level<select name="role"><option value="sales_rep">Salesperson</option><option value="manager">Manager</option></select></label>
+      <p class="status-text">After being added, the user can sign in immediately with this Google account—no passcode required.</p>
+      <div class="button-row"><button class="btn btn-primary" type="submit">Add User</button><button class="btn btn-secondary" type="button" data-close-team-member>Cancel</button></div>
     </form>
   </dialog>
 
