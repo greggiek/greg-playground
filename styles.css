@@ -16,6 +16,22 @@
 * { box-sizing: border-box; }
 body { margin: 0; background: radial-gradient(circle at 15% 0%, #fffdf4 0, transparent 28rem), var(--bg); color: var(--text); }
 button, input, textarea, select { font: inherit; }
+.app-locked { display: none; }
+.login-screen { min-height: 100svh; display: grid; place-items: center; padding: 22px; background: radial-gradient(circle at 20% 0%, #35475b 0, transparent 34rem), linear-gradient(145deg, #111923, #1d2a38 65%, #293a4c); }
+.login-screen[hidden] { display: none; }
+.login-card { width: min(440px, 100%); padding: clamp(28px, 6vw, 42px); border: 1px solid rgba(255,255,255,.14); border-radius: 26px; background: rgba(255,255,255,.98); box-shadow: 0 28px 85px rgba(0,0,0,.32); text-align: center; }
+.login-mark { width: 64px; height: 64px; display: grid; place-items: center; margin: 0 auto 20px; border-radius: 18px; background: var(--accent); color: #332900; font-weight: 950; letter-spacing: -.04em; font-size: 1.25rem; box-shadow: 0 10px 25px rgba(242,201,76,.3); }
+.login-card h1 { font-size: 2rem; }
+.login-copy { margin: 12px auto 24px; color: var(--muted); line-height: 1.55; }
+.google-login-btn { width: 100%; display: flex; align-items: center; justify-content: center; gap: 12px; border: 1px solid #d8dce1; border-radius: 13px; padding: 13px 16px; background: #fff; color: var(--text); font-weight: 850; cursor: pointer; box-shadow: 0 5px 15px rgba(23,32,43,.06); }
+.google-login-btn:hover { background: #fafafa; border-color: #bfc5cc; }
+.google-g { width: 25px; height: 25px; display: grid; place-items: center; border-radius: 999px; color: #4285f4; font-size: 1.15rem; font-weight: 950; }
+.login-fallback-link { margin-top: 18px; border: 0; background: transparent; color: var(--muted); font-size: .82rem; font-weight: 800; text-decoration: underline; cursor: pointer; }
+.passcode-login { display: grid; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); text-align: left; }
+.passcode-login[hidden] { display: none; }
+.passcode-login label { display: grid; gap: 7px; font-size: .8rem; font-weight: 850; }
+.login-error { min-height: 1.2em; margin: 14px 0 0; color: var(--danger); font-size: .82rem; line-height: 1.4; }
+.login-domain { margin: 18px 0 0; color: #8a929d; font-size: .72rem; }
 
 .app-header {
   position: sticky;

@@ -7,7 +7,23 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div id="app">
+  <section id="loginScreen" class="login-screen">
+    <div class="login-card">
+      <div class="login-mark">BM</div>
+      <p class="eyebrow">BARGAIN MOULDING</p>
+      <h1>Prospect CRM</h1>
+      <p class="login-copy">Sign in with your company Google account to access your contacts, tasks, email, and calendar.</p>
+      <button id="googleLoginBtn" class="google-login-btn" type="button"><span class="google-g">G</span> Continue with Google</button>
+      <button id="showPasscodeBtn" class="login-fallback-link" type="button">Use emergency passcode</button>
+      <form id="passcodeLoginForm" class="passcode-login" hidden>
+        <label>CRM passcode<input name="passcode" type="password" autocomplete="current-password" required /></label>
+        <button class="btn btn-secondary" type="submit">Sign in with passcode</button>
+      </form>
+      <p id="loginError" class="login-error" role="alert"></p>
+      <p class="login-domain">Authorized @bargainmoulding.com accounts only</p>
+    </div>
+  </section>
+  <div id="app" class="app-locked">
     <header class="app-header">
       <div>
         <p class="eyebrow">BARGAIN MOULDING</p>
