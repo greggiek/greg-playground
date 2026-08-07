@@ -15,22 +15,26 @@ let agendaView = "week";
 
 const $ = (selector) => document.querySelector(selector);
 
-async function crmFetch(url, options = {}, retry = true) {
-  let accessCode = sessionStorage.getItem("bargainCrmAccessCode");
-  if (!accessCode) {
-    accessCode = prompt("Enter the Bargain CRM access code:");
-    if (!accessCode) throw new Error("CRM access code required.");
-    sessionStorage.setItem("bargainCrmAccessCode", accessCode);
-  }
+async function crmFetch(url, options = {}) {
+  const accessCode = sessionStorage.getItem("bargainCrmAccessCode") || "";
   const response = await fetch(url, {
     ...options,
-    headers: { ...(options.headers || {}), "X-CRM-Access-Code": accessCode },
+    credentials: "same-origin",
+    headers: { ...(options.headers || {}), ...(accessCode ? { "X-CRM-Access-Code": accessCode } : {}) },
   });
-  if (response.status === 401 && retry) {
-    sessionStorage.removeItem("bargainCrmAccessCode");
-    return crmFetch(url, options, false);
-  }
   return response;
+}
+
+function showLogin(message = "") {
+  currentUser = null;
+  $("#app").classList.add("app-locked");
+  $("#loginScreen").hidden = false;
+  $("#loginError").textContent = message;
+}
+
+function showCrm() {
+  $("#loginScreen").hidden = true;
+  $("#app").classList.remove("app-locked");
 }
 
 function fromDbProspect(p) {
@@ -53,6 +57,7 @@ async function refreshCrm(openId) {
   const body = await response.json();
   if (!response.ok) throw new Error(body.error || "Could not load CRM.");
   currentUser = body.currentUser || currentUser;
+  showCrm();
   applyProfilePermissions();
   state = { prospects: (body.prospects || []).map(fromDbProspect), tasks: (body.tasks || []).map(fromDbTask) };
   saveState();
@@ -1080,9 +1085,28 @@ $("#newProspectBtn").addEventListener("click", () => {
   form.elements.owner.value = currentUserName();
   $("#prospectDialog").showModal();
 });
-$("#switchUserBtn").addEventListener("click", () => {
+$("#switchUserBtn").addEventListener("click", async () => {
+  await fetch("/api/auth/google/start?logout=1", { credentials: "same-origin" }).catch(() => {});
   sessionStorage.removeItem("bargainCrmAccessCode");
-  window.location.reload();
+  showLogin();
+});
+$("#googleLoginBtn").addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  $("#loginError").textContent = "";
+  try {
+    const response = await fetch("/api/auth/google/start?mode=login", { credentials: "same-origin" });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error || "Could not start Google sign-in.");
+    window.location.assign(body.url);
+  } catch (error) { $("#loginError").textContent = error.message; button.disabled = false; }
+});
+$("#showPasscodeBtn").addEventListener("click", () => { $("#passcodeLoginForm").hidden = false; $("#showPasscodeBtn").hidden = true; });
+$("#passcodeLoginForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const passcode = new FormData(event.currentTarget).get("passcode");
+  sessionStorage.setItem("bargainCrmAccessCode", String(passcode || ""));
+  try { await refreshCrm(); } catch (error) { sessionStorage.removeItem("bargainCrmAccessCode"); showLogin(error.message); }
 });
 $("#contactsBtn").addEventListener("click", openContacts);
 $("#activityTypeFilter").addEventListener("change", renderHomeActivity);
@@ -1153,7 +1177,8 @@ $("#agendaConnectGoogleBtn").addEventListener("click", connectGoogle);
 
 const gmailResult = new URLSearchParams(window.location.search);
 if (gmailResult.get("gmail") === "connected") {
-  alert("Google Mail and Calendar connected successfully.");
+  if (gmailResult.get("login") === "connected") showToast("Signed in with Google", "Your Gmail and Calendar are connected too.");
+  else showToast("Google connected", "Gmail and Calendar are ready.");
   history.replaceState({}, "", window.location.pathname);
 } else if (gmailResult.get("gmail") === "error") {
   alert(gmailResult.get("message") || "Gmail connection failed.");
@@ -1368,4 +1393,4 @@ $("#cancelQuoteBtn").addEventListener("click", () => {
 });
 
 $("#prospectList").innerHTML = `<div class="empty">Loading your CRM profile…</div>`;
-refreshCrm().catch((error) => console.warn("Supabase CRM load failed:", error));
+refreshCrm().catch((error) => { console.warn("CRM load failed:", error); showLogin(error.message === "Invalid CRM access code." ? "Sign in to continue." : error.message); });
