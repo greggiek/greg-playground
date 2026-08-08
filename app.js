@@ -13,6 +13,8 @@ let contactsMineOnly = false;
 let homeEmailMessages = [];
 let agendaView = "week";
 let teamSnapshot = [];
+let shopifyCollections = [];
+let selectedShopifyCollectionId = "";
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -514,9 +516,32 @@ function startQuote(quoteId = null) {
   const p = prospectById(currentProspectId);
   $("#quoteProspectName").textContent = p.companyName;
   $("#productSearch").value = "";
+  selectedShopifyCollectionId = "";
+  loadShopifyCollections();
   renderProductResults("");
   renderQuoteLines();
   showView("quoteView");
+}
+
+async function loadShopifyCollections() {
+  const container = $("#shopifyCollections");
+  container.innerHTML = `<button class="collection-button active" type="button" data-collection-id="">All Products</button>`;
+  try {
+    const response = await crmFetch("/api/products?mode=collections");
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error || "Could not load Shopify collections.");
+    shopifyCollections = body.collections || [];
+    $("#collectionStatus").textContent = `${shopifyCollections.length} quoting categor${shopifyCollections.length === 1 ? "y" : "ies"}`;
+    container.innerHTML = [`<button class="collection-button active" type="button" data-collection-id="">All Products</button>`, ...shopifyCollections.map((collection) => `<button class="collection-button" type="button" data-collection-id="${escapeHtml(collection.id)}">${escapeHtml(collection.title)}</button>`)].join("");
+  } catch (error) {
+    shopifyCollections = [];
+    $("#collectionStatus").textContent = error.message;
+  }
+  container.querySelectorAll("[data-collection-id]").forEach((button) => button.addEventListener("click", () => {
+    selectedShopifyCollectionId = button.dataset.collectionId;
+    container.querySelectorAll(".collection-button").forEach((item) => item.classList.toggle("active", item === button));
+    renderProductResults($("#productSearch").value);
+  }));
 }
 
 async function renderProductResults(query) {
@@ -525,11 +550,14 @@ async function renderProductResults(query) {
   $("#shopifyStatus").classList.remove("error");
   let products = [];
   try {
-    const response = await crmFetch(`/api/products?search=${encodeURIComponent(query.trim())}`);
+    const params = new URLSearchParams({ search: query.trim() });
+    if (selectedShopifyCollectionId) params.set("collection", selectedShopifyCollectionId);
+    const response = await crmFetch(`/api/products?${params}`);
     const body = await response.json();
     if (!response.ok) throw new Error(body.error || "Product search failed.");
     products = body.products || [];
-    $("#shopifyStatus").textContent = `${products.length} live Shopify variants found`;
+    const selectedCollection = shopifyCollections.find((collection) => collection.id === selectedShopifyCollectionId);
+    $("#shopifyStatus").textContent = `${products.length} live Shopify variants found${selectedCollection ? ` in ${selectedCollection.title}` : ""}`;
   } catch (error) {
     $("#shopifyStatus").textContent = error.message;
     $("#shopifyStatus").classList.add("error");
