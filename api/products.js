@@ -26,18 +26,27 @@ module.exports = async function handler(req, res) {
     const queryText = search ? search.replace(/[\\:*()]/g, " ").trim() : "";
     const collectionId = String(req.query.collection || "").match(/(?:Collection\/)?(\d+)$/)?.[1] || "";
     const filters = [collectionId ? `collection:${collectionId}` : "", queryText].filter(Boolean).join(" AND ");
-    const data = await shopifyGraphql(`
-      query ProductVariants($query: String!) {
-        productVariants(first: 25, query: $query) {
+    const productVariants = [];
+    let cursor = null;
+    let hasNextPage = true;
+    while (hasNextPage) {
+      const data = await shopifyGraphql(`
+      query ProductVariants($query: String!, $after: String) {
+        productVariants(first: 250, after: $after, query: $query) {
           nodes {
             id title sku price inventoryQuantity
             product { title status }
           }
+          pageInfo { hasNextPage endCursor }
         }
       }
-    `, { query: filters });
+      `, { query: filters, after: cursor });
+      productVariants.push(...data.productVariants.nodes);
+      hasNextPage = data.productVariants.pageInfo.hasNextPage;
+      cursor = data.productVariants.pageInfo.endCursor;
+    }
 
-    const products = data.productVariants.nodes
+    const products = productVariants
       .filter((variant) => variant.product.status === "ACTIVE")
       .map((variant) => ({
         id: variant.id,
