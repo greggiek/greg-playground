@@ -15,6 +15,7 @@ let agendaView = "week";
 let teamSnapshot = [];
 let shopifyCollections = [];
 let selectedShopifyCollectionId = "";
+let prospectSaveInFlight = false;
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -1177,6 +1178,10 @@ function prepareBulkEmail() {
 $("#newProspectBtn").addEventListener("click", () => {
   const form = $("#prospectForm");
   form.reset();
+  const saveButton = form.querySelector('[type="submit"]');
+  saveButton.disabled = prospectSaveInFlight;
+  saveButton.toggleAttribute("aria-busy", prospectSaveInFlight);
+  saveButton.textContent = prospectSaveInFlight ? "Saving Prospect…" : "Save Prospect";
   form.elements.owner.disabled = !isManager();
   form.elements.owner.value = currentUserName();
   $("#prospectDialog").showModal();
@@ -1342,9 +1347,17 @@ document.querySelectorAll("[data-back]").forEach((btn) =>
 
 $("#prospectForm").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const data = new FormData(event.currentTarget);
+  if (prospectSaveInFlight) return;
+  const form = event.currentTarget;
+  const saveButton = form.querySelector('[type="submit"]');
+  const data = new FormData(form);
   const companyName = String(data.get("companyName") || "").trim();
   if (!companyName) return;
+
+  prospectSaveInFlight = true;
+  saveButton.disabled = true;
+  saveButton.setAttribute("aria-busy", "true");
+  saveButton.textContent = "Saving Prospect…";
 
   const notes = String(data.get("notes") || "").trim();
   const createdAt = nowIso();
@@ -1383,10 +1396,24 @@ $("#prospectForm").addEventListener("submit", async (event) => {
     });
   }
 
-  const created = await crmAction("createProspect", { ...prospect, notes });
-  event.currentTarget.reset();
-  $("#prospectDialog").close();
-  await refreshCrm(created.prospect.id);
+  try {
+    const created = await crmAction("createProspect", { ...prospect, notes });
+    form.reset();
+    $("#prospectDialog").close();
+    showToast("Prospect saved", `${companyName} was added to the CRM.`);
+    try {
+      await refreshCrm(created.prospect.id);
+    } catch (refreshError) {
+      showToast("Prospect saved — refresh needed", `${companyName} is in the CRM. Refresh the page to see it.`, "warning");
+    }
+  } catch (error) {
+    alert(`Prospect was not saved: ${error.message}`);
+  } finally {
+    prospectSaveInFlight = false;
+    saveButton.disabled = false;
+    saveButton.removeAttribute("aria-busy");
+    saveButton.textContent = "Save Prospect";
+  }
 });
 
 $("#editForm").addEventListener("submit", async (event) => {
