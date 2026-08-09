@@ -270,6 +270,12 @@ textarea { resize: vertical; }
 .status-text { color: var(--muted); font-size: .82rem; margin: 7px 0 0; }
 .status-text.error { color: var(--danger); }
 .product-results { display: grid; gap: 8px; margin-top: 10px; max-height: 240px; overflow: auto; }
+.quote-prospect-results { display: grid; gap: 8px; max-height: 420px; margin-top: 14px; overflow-y: auto; }
+.quote-prospect-option { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 14px; border: 1px solid var(--border); border-radius: 13px; background: var(--card); color: var(--text); text-align: left; cursor: pointer; }
+.quote-prospect-option:hover, .quote-prospect-option:focus-visible { border-color: var(--brand); background: #f7fafc; outline: none; }
+.quote-prospect-option strong, .quote-prospect-option small { display: block; }
+.quote-prospect-option small { margin-top: 4px; color: var(--muted); }
+.quote-prospect-arrow { flex: 0 0 auto; color: var(--muted); font-size: 1.25rem; font-weight: 900; }
 .quote-catalog-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 11px; }
 .quote-catalog-heading h3 { margin: 0; }
 .collection-buttons { display: flex; gap: 8px; margin-bottom: 16px; padding-bottom: 4px; overflow-x: auto; scrollbar-width: thin; }
