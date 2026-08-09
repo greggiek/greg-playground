@@ -32,6 +32,7 @@
       <div class="header-actions">
         <span id="profileBadge" class="profile-badge" hidden></span>
         <button id="switchUserBtn" class="btn btn-secondary" type="button" hidden>Switch User</button>
+        <button id="headerBuildQuoteBtn" class="btn btn-secondary" type="button">Build Quote</button>
         <button id="contactsBtn" class="btn btn-secondary" type="button">Contacts</button>
         <button id="teamBtn" class="btn btn-secondary" type="button" hidden>Team</button>
         <button id="campaignsBtn" class="btn btn-secondary" type="button" hidden>Campaigns</button>
@@ -232,6 +233,18 @@
       </section>
     </main>
   </div>
+
+  <dialog id="quoteProspectDialog">
+    <form method="dialog">
+      <div class="dialog-header">
+        <div><p class="eyebrow">START A QUOTE</p><h2>Choose a Prospect</h2></div>
+        <button type="button" class="icon-btn" data-close-quote-picker aria-label="Close">×</button>
+      </div>
+      <label for="quoteProspectSearch">Search prospects</label>
+      <input id="quoteProspectSearch" type="search" placeholder="Company, contact, email, or phone…" autocomplete="off" />
+      <div id="quoteProspectResults" class="quote-prospect-results"></div>
+    </form>
+  </dialog>
 
   <dialog id="prospectDialog">
     <form id="prospectForm" method="dialog">
