@@ -183,6 +183,30 @@ function latestReminder(prospect) {
   return active.sort((a, b) => new Date(a.date) - new Date(b.date))[0] || null;
 }
 
+function renderQuoteProspectPicker() {
+  const search = $("#quoteProspectSearch").value.trim().toLowerCase();
+  const prospects = [...state.prospects]
+    .filter((prospect) => [prospect.companyName, prospect.contactName, prospect.email, prospect.phone].join(" ").toLowerCase().includes(search))
+    .sort((a, b) => a.companyName.localeCompare(b.companyName));
+  $("#quoteProspectResults").innerHTML = prospects.length ? prospects.map((prospect) => `
+    <button class="quote-prospect-option" type="button" data-quote-prospect="${escapeHtml(prospect.id)}">
+      <span><strong>${escapeHtml(prospect.companyName)}</strong><small>${escapeHtml([prospect.contactName, prospect.email || prospect.phone].filter(Boolean).join(" · ") || "No contact details")}</small></span>
+      <span class="quote-prospect-arrow" aria-hidden="true">→</span>
+    </button>`).join("") : `<div class="empty">No prospects match that search.</div>`;
+  document.querySelectorAll("[data-quote-prospect]").forEach((button) => button.addEventListener("click", () => {
+    currentProspectId = button.dataset.quoteProspect;
+    $("#quoteProspectDialog").close();
+    startQuote();
+  }));
+}
+
+function openQuoteProspectPicker() {
+  $("#quoteProspectSearch").value = "";
+  renderQuoteProspectPicker();
+  $("#quoteProspectDialog").showModal();
+  $("#quoteProspectSearch").focus();
+}
+
 function renderHome() {
   const hour = new Date().getHours();
   $("#dashboardGreeting").textContent = `Good ${hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening"}, ${currentUserName()}`;
@@ -1210,6 +1234,9 @@ $("#passcodeLoginForm").addEventListener("submit", async (event) => {
   try { await refreshCrm(); } catch (error) { sessionStorage.removeItem("bargainCrmAccessCode"); showLogin(error.message); }
 });
 $("#contactsBtn").addEventListener("click", openContacts);
+$("#headerBuildQuoteBtn").addEventListener("click", openQuoteProspectPicker);
+$("#quoteProspectSearch").addEventListener("input", renderQuoteProspectPicker);
+document.querySelectorAll("[data-close-quote-picker]").forEach((button) => button.addEventListener("click", () => $("#quoteProspectDialog").close()));
 $("#teamBtn").addEventListener("click", openTeamDashboard);
 $("#addTeamMemberBtn").addEventListener("click", () => { $("#teamMemberForm").reset(); $("#teamMemberDialog").showModal(); });
 $("#activityTypeFilter").addEventListener("change", renderHomeActivity);
