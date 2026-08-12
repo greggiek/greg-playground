@@ -628,3 +628,388 @@ dialog label { display: grid; gap: 7px; margin-top: 14px; font-weight: 800; }
   dialog { width: min(680px, calc(100% - 48px)); }
   dialog form { padding: 28px; }
 }
+
+
+/* BM Time visual system */
+:root {
+  --bg: #f3f6fa;
+  --card: #ffffff;
+  --text: #102a43;
+  --muted: #62758a;
+  --border: #dce5ef;
+  --brand: #12324d;
+  --accent: #2f80ed;
+  --danger: #c13c32;
+  --warning: #b76e00;
+  --success: #07875f;
+  --shadow: 0 10px 28px rgba(16, 42, 67, .07);
+}
+
+body {
+  background: #f3f6fa;
+  color: var(--text);
+}
+
+input, textarea, select {
+  border-color: #d6e0eb;
+  border-radius: 8px;
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: 3px solid rgba(47, 128, 237, .14);
+  border-color: var(--accent);
+}
+
+.btn {
+  border-radius: 8px;
+  font-weight: 750;
+  box-shadow: none;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 5px 14px rgba(47, 128, 237, .18);
+}
+
+.btn-primary:hover {
+  background: #246fcf;
+  box-shadow: 0 7px 18px rgba(47, 128, 237, .22);
+}
+
+.btn-secondary {
+  background: #eef3f8;
+  color: var(--brand);
+  border-color: #d9e3ed;
+}
+
+.profile-badge {
+  background: rgba(47, 128, 237, .15);
+  color: #dcecff;
+}
+
+.app-header {
+  background: #12324d;
+  border-color: rgba(255, 255, 255, .08);
+}
+
+.app-header .eyebrow {
+  color: #9fb7cc;
+}
+
+.app-header .btn-primary {
+  background: #2f80ed;
+  color: #fff;
+}
+
+.hero-card {
+  color: var(--text);
+  border: 1px solid var(--border);
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.hero-card .eyebrow {
+  color: var(--muted);
+}
+
+.count-pill {
+  background: #e8f1fe;
+  color: #246fcf;
+  box-shadow: none;
+}
+
+.hero-card, .page-card, .prospect-header,
+.activity-feed-card, .weekly-agenda-card,
+.contacts-shell, .campaign-performance-card,
+.team-member-card {
+  border-radius: 11px;
+  box-shadow: var(--shadow);
+}
+
+.stat-card {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.stat-card::before {
+  inset: auto 0 0;
+  width: auto;
+  height: 3px;
+  background: var(--accent);
+}
+
+.stat-card::after {
+  content: "";
+  position: absolute;
+  width: 76px;
+  height: 76px;
+  top: -36px;
+  right: -30px;
+  border-radius: 50%;
+  background: #e6eefb;
+}
+
+.activity-item:hover,
+.contacts-table tbody tr:hover,
+.contacts-table tbody tr:focus {
+  background: #f4f8fc;
+}
+
+.activity-icon {
+  background: #eaf0f6;
+  color: var(--brand);
+}
+
+.agenda-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.agenda-controls,
+.contacts-filters {
+  background: #f5f8fb;
+}
+
+.toolbar {
+  background: #fff;
+}
+
+.prospect-card, .follow-card,
+.quote-prospect-option, .product-result,
+.saved-template-card, .timeline-item {
+  border-radius: 9px;
+  box-shadow: none;
+}
+
+.prospect-card:hover, .follow-card:hover {
+  border-color: #b9cde0;
+  box-shadow: 0 6px 18px rgba(16, 42, 67, .07);
+}
+
+.collection-button {
+  border-radius: 8px;
+  font-weight: 750;
+}
+
+.collection-button.active {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.contact-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.contacts-table th {
+  background: #eef3f8;
+  color: #526b82;
+}
+
+.contacts-table td {
+  border-bottom-color: #e3eaf2;
+}
+
+.badge {
+  background: #e9f0f6;
+  color: #526b82;
+}
+
+.badge.stage-won {
+  background: #def6ed;
+  color: var(--success);
+}
+
+.badge.stage-lost {
+  background: #fce8e6;
+  color: var(--danger);
+}
+
+.badge.stage-quoting {
+  background: #e7f0fd;
+  color: #246fcf;
+}
+
+.team-avatar {
+  background: #e8f1fe;
+  color: #246fcf;
+}
+
+.team-metric {
+  background: #f3f7fa;
+}
+
+.info-strip, .recipient-summary {
+  background: #edf5ff;
+  border-color: #c8ddf6;
+}
+
+.login-screen {
+  background: linear-gradient(145deg, #0d263c, #12324d 68%, #1a466a);
+}
+
+.login-mark {
+  background: #2f80ed;
+  color: #fff;
+  box-shadow: 0 10px 25px rgba(47, 128, 237, .28);
+}
+
+@media (min-width: 1100px) {
+  body {
+    background: #f3f6fa;
+  }
+
+  .app-header {
+    width: 226px;
+    padding: 22px 12px 18px;
+    box-shadow: 8px 0 24px rgba(16, 42, 67, .08);
+  }
+
+  .app-header > div:first-child {
+    padding: 0 8px 18px;
+  }
+
+  .app-header h1 {
+    font-size: 1.32rem;
+    letter-spacing: -.02em;
+  }
+
+  .header-actions {
+    gap: 4px;
+  }
+
+  .header-actions .profile-badge {
+    margin: 0 5px 12px;
+    width: calc(100% - 10px);
+    border-radius: 7px;
+  }
+
+  .header-actions .btn {
+    padding: 10px 12px;
+    border-radius: 6px;
+    background: transparent;
+    border-color: transparent;
+    color: #dce6ef;
+    font-size: .82rem;
+    font-weight: 700;
+  }
+
+  .header-actions .btn:hover {
+    transform: none;
+    background: rgba(255, 255, 255, .08);
+    color: #fff;
+  }
+
+  .header-actions #newProspectBtn {
+    background: #2f80ed;
+    color: #fff;
+    box-shadow: none;
+  }
+
+  main {
+    width: calc(100% - 226px);
+    margin-left: 226px;
+    padding: 28px clamp(24px, 2.7vw, 44px) 64px;
+  }
+
+  .view.active {
+    max-width: 1560px;
+  }
+
+  #homeView.active {
+    gap: 14px;
+  }
+
+  #homeView > .dashboard-welcome {
+    padding-bottom: 4px;
+  }
+
+  #homeView > .dashboard-welcome h2 {
+    font-size: 1.55rem;
+    letter-spacing: -.025em;
+  }
+
+  #homeView > .hero-card,
+  #homeView > .stats-grid {
+    min-height: 106px;
+  }
+
+  #homeView > .hero-card {
+    padding: 18px 20px;
+  }
+
+  #homeView > .stats-grid .stat-card {
+    min-height: 106px;
+    padding: 16px;
+  }
+
+  #homeView > .activity-feed-card,
+  #homeView > section:nth-of-type(3) {
+    height: 430px;
+  }
+
+  #homeView > .activity-feed-card .activity-feed {
+    max-height: 360px;
+  }
+
+  #homeView > .toolbar {
+    padding: 11px;
+    border-radius: 10px;
+    box-shadow: none;
+  }
+
+  #homeView > section:nth-of-type(3) {
+    border-radius: 11px;
+  }
+
+  #homeView > section:nth-of-type(4) .card-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .activity-feed-heading,
+  .agenda-heading {
+    padding: 15px 17px;
+  }
+
+  .activity-item {
+    padding: 11px 15px;
+  }
+
+  .page-card, .prospect-header {
+    border-radius: 11px;
+    padding: 22px;
+  }
+
+  .contacts-shell, .campaign-performance-card {
+    border-radius: 11px;
+    box-shadow: var(--shadow);
+  }
+
+  .contacts-heading {
+    padding: 18px;
+  }
+
+  .contacts-table {
+    font-size: .82rem;
+  }
+
+  .contacts-table th {
+    padding: 10px 13px;
+    font-size: .66rem;
+  }
+
+  .contacts-table td {
+    padding: 11px 13px;
+  }
+
+  .team-card-grid {
+    gap: 11px;
+  }
+
+  .team-member-card {
+    border-radius: 11px;
+    padding: 16px;
+  }
+}
