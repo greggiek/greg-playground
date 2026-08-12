@@ -468,3 +468,163 @@ dialog label { display: grid; gap: 7px; margin-top: 14px; font-weight: 800; }
   .quote-line .quote-price { grid-column: 1 / 2; text-align: left; color: var(--muted); }
   .quote-line .remove-line { grid-column: 2 / 3; grid-row: 2; }
 }
+
+
+/* Desktop workspace */
+@media (min-width: 1100px) {
+  body { background: linear-gradient(135deg, #f7f6f2 0%, #eef2f5 100%); }
+  #app:not(.app-locked) { min-height: 100vh; }
+
+  .app-header {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 258px;
+    height: 100vh;
+    padding: 28px 18px 20px;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 22px;
+    overflow-y: auto;
+    border-right: 1px solid rgba(255,255,255,.1);
+    border-bottom: 0;
+    box-shadow: 12px 0 38px rgba(23,32,43,.14);
+  }
+  .app-header > div:first-child {
+    padding: 0 8px 22px;
+    border-bottom: 1px solid rgba(255,255,255,.12);
+  }
+  .app-header h1 { font-size: 1.5rem; line-height: 1.05; }
+  .app-header .eyebrow { margin-bottom: 8px; font-size: .65rem; }
+
+  .header-actions {
+    width: 100%;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 7px;
+  }
+  .header-actions .profile-badge {
+    order: -1;
+    width: 100%;
+    margin-bottom: 10px;
+    padding: 11px 12px;
+    border-radius: 12px;
+    text-align: left;
+  }
+  .header-actions .btn {
+    width: 100%;
+    padding: 11px 12px;
+    border-radius: 10px;
+    text-align: left;
+    box-shadow: none;
+  }
+  .header-actions .btn:hover { transform: translateX(2px); }
+  .header-actions #newProspectBtn {
+    order: 20;
+    margin-top: auto;
+    text-align: center;
+    box-shadow: 0 8px 22px rgba(0,0,0,.16);
+  }
+  .header-actions #switchUserBtn {
+    order: 21;
+    margin-top: 3px;
+    color: #cbd5df;
+    font-size: .78rem;
+  }
+
+  main {
+    width: calc(100% - 258px);
+    max-width: none;
+    min-height: 100vh;
+    margin: 0 0 0 258px;
+    padding: 34px clamp(28px, 3vw, 52px) 72px;
+  }
+  .view.active { width: 100%; max-width: 1480px; margin: 0 auto; }
+
+  #homeView.active {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 18px;
+    align-items: start;
+  }
+  #homeView > .dashboard-welcome { grid-column: 1 / -1; padding: 0 2px 2px; }
+  #homeView > .dashboard-welcome h2 { margin-bottom: 0; font-size: 2rem; }
+  #homeView > .hero-card {
+    grid-column: span 4;
+    min-height: 128px;
+    margin: 0;
+    padding: 24px;
+  }
+  #homeView > .stats-grid {
+    grid-column: span 8;
+    min-height: 128px;
+    margin: 0;
+  }
+  #homeView > .stats-grid .stat-card {
+    min-height: 128px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  #homeView > .activity-feed-card {
+    grid-column: span 8;
+    height: 460px;
+    margin: 0;
+  }
+  #homeView > .activity-feed-card .activity-feed { max-height: 390px; }
+  #homeView > .weekly-agenda-card {
+    grid-column: 1 / -1;
+    margin: 0;
+  }
+  #homeView > .toolbar {
+    grid-column: 1 / -1;
+    margin: 0;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: rgba(255,255,255,.88);
+    box-shadow: var(--shadow);
+  }
+  #homeView > section:nth-of-type(3) {
+    grid-column: span 4;
+    grid-row: 3;
+    height: 460px;
+    padding: 0 16px 16px;
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--card);
+    box-shadow: var(--shadow);
+  }
+  #homeView > section:nth-of-type(3) .section-heading {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    margin: 0 -16px 10px;
+    padding: 18px 16px 12px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+  }
+  #homeView > section:nth-of-type(4) { grid-column: 1 / -1; }
+  #homeView > section:nth-of-type(4) .card-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .page-card, .prospect-header { border-radius: 22px; }
+  .page-card { padding: 28px; }
+  .prospect-header { padding: 28px; }
+  .prospect-header-grid { grid-template-columns: minmax(0, 1fr) 220px; }
+  .action-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .quote-prospect-results { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .product-results { max-height: 410px; }
+  .quote-line { grid-template-columns: minmax(0, 1fr) 110px 130px 42px; }
+  .contacts-shell, .campaign-performance-card { border-radius: 20px; box-shadow: var(--shadow); }
+  .contacts-table { min-width: 1180px; font-size: .9rem; }
+  .contacts-table th { padding: 13px 15px; }
+  .contacts-table td { padding: 14px 15px; }
+  .team-card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  dialog { width: min(680px, calc(100% - 48px)); }
+  dialog form { padding: 28px; }
+}
