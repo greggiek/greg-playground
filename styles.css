@@ -1060,3 +1060,121 @@ input:focus, textarea:focus, select:focus {
     padding: 0 2px 18px;
   }
 }
+
+
+/* Dormant prospect automation */
+.dormant-automation-card {
+  margin-top: 22px;
+}
+
+.dormant-automation-heading,
+.dormant-automation-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.automation-switch,
+.dormant-skip-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--brand);
+  font-size: .84rem;
+  font-weight: 800;
+}
+
+.automation-switch {
+  flex: 0 0 auto;
+  padding: 10px 13px;
+  border: 1px solid #c8ddf6;
+  border-radius: 999px;
+  background: #edf5ff;
+}
+
+.automation-switch input,
+.dormant-skip-option input,
+.dormant-stage-options input {
+  width: auto;
+  margin: 0;
+}
+
+.dormant-settings-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.dormant-settings-grid label {
+  display: block;
+}
+
+.dormant-settings-grid small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: .72rem;
+  line-height: 1.4;
+}
+
+.dormant-stage-fieldset {
+  margin: 20px 0 16px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.dormant-stage-fieldset legend {
+  padding: 0 6px;
+  color: var(--brand);
+  font-size: .78rem;
+  font-weight: 850;
+}
+
+.dormant-stage-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.dormant-stage-options label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px;
+  border: 1px solid #d9e3ed;
+  border-radius: 8px;
+  background: #f5f8fb;
+  font-size: .78rem;
+  font-weight: 750;
+}
+
+.dormant-automation-footer {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.dormant-automation-footer .button-row {
+  margin-top: 0;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 700px) {
+  .dormant-automation-heading,
+  .dormant-automation-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dormant-settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dormant-automation-footer .button-row,
+  .dormant-automation-footer .btn {
+    width: 100%;
+  }
+}
