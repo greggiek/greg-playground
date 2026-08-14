@@ -3,8 +3,20 @@ const { supabaseRest } = require("../lib/supabase");
 const { createCalendarTaskEvent, deleteCalendarTaskEvent } = require("../lib/google");
 const crypto = require("crypto");
 
-const OWNERS = new Set(["Greg", "Craig", "Rep 1"]);
-function validOwner(value) { return OWNERS.has(value) ? value : "Greg"; }
+const PRODUCT_INTERESTS = new Set(["Doors", "Moulding", "PVC", "Kitchen", "Entry Doors"]);
+function cleanProductInterests(value) {
+  return [...new Set(Array.isArray(value) ? value.map((item) => String(item || "").trim()).filter((item) => PRODUCT_INTERESTS.has(item)) : [])];
+}
+function cleanProspectIds(value, limit = 250) {
+  const ids = [...new Set(Array.isArray(value) ? value.map(String) : [])].filter((id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id));
+  return ids.slice(0, limit);
+}
+async function activeOwner(value, fallback = "Greg") {
+  const name = String(value || "").trim();
+  if (!name) return fallback;
+  const rows = await supabaseRest(`crm_users?name=eq.${encodeURIComponent(name)}&active=eq.true&select=name&limit=1`);
+  return rows?.[0]?.name || fallback;
+}
 function isManager(user) { return user.role === "manager"; }
 
 function after(value, cutoff) { return value && new Date(value) >= cutoff; }
@@ -143,7 +155,7 @@ module.exports = async function handler(req, res) {
     if (action === "createTask") {
       const title = String(data.title || "").trim();
       if (!title || !/^\d{4}-\d{2}-\d{2}$/.test(String(data.dueDate || ""))) return res.status(400).json({ error: "Task title and due date are required." });
-      const assignedTo = isManager(user) ? validOwner(data.assignedTo) : user.name;
+      const assignedTo = isManager(user) ? await activeOwner(data.assignedTo, user.name) : user.name;
       if (data.prospectId && !await canAccessProspect(user, data.prospectId)) return res.status(403).json({ error: "You do not have access to that contact." });
       const allowedTypes = new Set(["follow_up", "call", "email", "quote", "admin"]);
       const allowedPriorities = new Set(["low", "normal", "high"]);
@@ -178,10 +190,10 @@ module.exports = async function handler(req, res) {
     }
 
     if (action === "createProspect") {
-      const owner = isManager(user) ? validOwner(data.owner) : user.name;
+      const owner = isManager(user) ? await activeOwner(data.owner, user.name) : user.name;
       const [prospect] = await supabaseRest("crm_prospects", {
         method: "POST", headers: { Prefer: "return=representation" },
-        body: JSON.stringify({ company_name: data.companyName, contact_name: data.contactName || "", email: data.email || "", phone: data.phone || "", address: data.address || "", stage: data.stage || "New Lead", estimated_value: Number(data.estimatedValue || 0), owner_name: owner, created_by: user.name }),
+        body: JSON.stringify({ company_name: data.companyName, contact_name: data.contactName || "", email: data.email || "", phone: data.phone || "", address: data.address || "", stage: data.stage || "New Lead", estimated_value: Number(data.estimatedValue || 0), owner_name: owner, created_by: user.name, product_interests: cleanProductInterests(data.productInterests) }),
       });
       await supabaseRest("crm_activities", { method: "POST", body: JSON.stringify({ prospect_id: prospect.id, activity_type: "created", body: data.notes || "Created prospect.", user_name: user.name }) });
       return res.status(201).json({ prospect });
@@ -189,8 +201,8 @@ module.exports = async function handler(req, res) {
 
     if (action === "updateProspect") {
       if (!await requireProspectAccess(user, data.id, res)) return;
-      const owner = isManager(user) ? validOwner(data.owner) : user.name;
-      const patch = { company_name: data.companyName, contact_name: data.contactName || "", email: data.email || "", phone: data.phone || "", address: data.address || "", stage: data.stage, estimated_value: Number(data.estimatedValue || 0), owner_name: owner };
+      const owner = isManager(user) ? await activeOwner(data.owner, user.name) : user.name;
+      const patch = { company_name: data.companyName, contact_name: data.contactName || "", email: data.email || "", phone: data.phone || "", address: data.address || "", stage: data.stage, estimated_value: Number(data.estimatedValue || 0), owner_name: owner, product_interests: cleanProductInterests(data.productInterests) };
       const [prospect] = await supabaseRest(`crm_prospects?id=eq.${encodeURIComponent(data.id)}`, { method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify(patch) });
       if (data.oldStage && data.oldStage !== data.stage) await supabaseRest("crm_activities", { method: "POST", body: JSON.stringify({ prospect_id: data.id, activity_type: "stage", body: `Moved from ${data.oldStage} to ${data.stage}.`, user_name: user.name }) });
       return res.status(200).json({ prospect });
@@ -198,11 +210,52 @@ module.exports = async function handler(req, res) {
 
     if (action === "updateOwner") {
       if (!(await requireManager(req, res))) return;
-      if (!data.id || !OWNERS.has(data.owner)) return res.status(400).json({ error: "Choose Greg, Craig, or Rep 1 as the account owner." });
-      const [prospect] = await supabaseRest(`crm_prospects?id=eq.${encodeURIComponent(data.id)}`, { method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify({ owner_name: data.owner }) });
+      if (!data.id) return res.status(400).json({ error: "Prospect ID is required." });
+      const selectedOwner = await activeOwner(data.owner, "");
+      if (!selectedOwner) return res.status(400).json({ error: "Choose an active salesperson." });
+      const [prospect] = await supabaseRest(`crm_prospects?id=eq.${encodeURIComponent(data.id)}`, { method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify({ owner_name: selectedOwner, updated_at: new Date().toISOString() }) });
       if (!prospect) return res.status(404).json({ error: "Prospect not found." });
-      await supabaseRest("crm_activities", { method: "POST", body: JSON.stringify({ prospect_id: data.id, activity_type: "owner", body: `Account owner changed from ${data.oldOwner || "Unassigned"} to ${data.owner}.`, user_name: user.name }) });
+      await supabaseRest("crm_activities", { method: "POST", body: JSON.stringify({ prospect_id: data.id, activity_type: "owner", body: `Account owner changed from ${data.oldOwner || "Unassigned"} to ${selectedOwner}.`, user_name: user.name }) });
       return res.status(200).json({ prospect });
+    }
+
+    if (action === "bulkReassignProspects") {
+      if (!(await requireManager(req, res))) return;
+      const ids = cleanProspectIds(data.prospectIds);
+      if (!ids.length) return res.status(400).json({ error: "Select at least one contact." });
+      const owner = await activeOwner(data.owner, "");
+      if (!owner) return res.status(400).json({ error: "Choose an active salesperson." });
+      const prospects = await supabaseRest(`crm_prospects?id=in.(${ids.join(",")})&select=id,owner_name`);
+      await supabaseRest(`crm_prospects?id=in.(${ids.join(",")})`, { method: "PATCH", body: JSON.stringify({ owner_name: owner, updated_at: new Date().toISOString() }) });
+      const activities = prospects.map((prospect) => ({ prospect_id: prospect.id, activity_type: "owner", body: `Account owner changed from ${prospect.owner_name || "Unassigned"} to ${owner} by bulk action.`, user_name: user.name }));
+      if (activities.length) await supabaseRest("crm_activities", { method: "POST", body: JSON.stringify(activities) });
+      return res.status(200).json({ updated: prospects.length, owner });
+    }
+
+    if (action === "bulkCreateTasks") {
+      if (!(await requireManager(req, res))) return;
+      const ids = cleanProspectIds(data.prospectIds, 200);
+      const title = String(data.title || "Follow up").trim().slice(0, 120);
+      if (!ids.length || !title || !/^\d{4}-\d{2}-\d{2}$/.test(String(data.dueDate || ""))) return res.status(400).json({ error: "Select contacts and enter a task title and due date." });
+      const assignedMode = data.assignmentMode === "selected" ? "selected" : "owner";
+      const selectedOwner = assignedMode === "selected" ? await activeOwner(data.assignedTo, "") : "";
+      if (assignedMode === "selected" && !selectedOwner) return res.status(400).json({ error: "Choose an active salesperson." });
+      const allowedTypes = new Set(["follow_up", "call", "email", "quote", "admin"]);
+      const allowedPriorities = new Set(["low", "normal", "high"]);
+      const prospects = await supabaseRest(`crm_prospects?id=in.(${ids.join(",")})&select=id,company_name,contact_name,owner_name`);
+      const tasks = prospects.map((prospect) => ({
+        title: `${title}: ${prospect.company_name || prospect.contact_name || "Contact"}`,
+        notes: String(data.notes || "").trim().slice(0, 2000),
+        task_type: allowedTypes.has(data.taskType) ? data.taskType : "follow_up",
+        priority: allowedPriorities.has(data.priority) ? data.priority : "normal",
+        due_date: data.dueDate,
+        assigned_to: assignedMode === "selected" ? selectedOwner : (prospect.owner_name || user.name),
+        prospect_id: prospect.id,
+        created_by: user.name,
+        calendar_sync_error: "Bulk-created task. Calendar sync is available for individual tasks."
+      }));
+      const created = tasks.length ? await supabaseRest("crm_tasks", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify(tasks) }) : [];
+      return res.status(201).json({ created: created.length });
     }
 
     if (action === "addNote") {
