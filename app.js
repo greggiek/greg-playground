@@ -17,6 +17,8 @@ let shopifyCollections = [];
 let selectedShopifyCollectionId = "";
 let prospectSaveInFlight = false;
 let dormantSettings = null;
+let selectedContactIds = new Set();
+let bulkEmailSelectedIds = [];
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -46,7 +48,7 @@ function fromDbProspect(p) {
   return {
     id: p.id, companyName: p.company_name, contactName: p.contact_name, email: p.email,
     phone: p.phone, address: p.address, stage: p.stage, estimatedValue: Number(p.estimated_value),
-    owner: p.owner_name, customerId: p.shopify_customer_id, createdAt: p.created_at,
+    owner: p.owner_name, productInterests: Array.isArray(p.product_interests) ? p.product_interests : [], customerId: p.shopify_customer_id, createdAt: p.created_at,
     timeline: (p.crm_activities || []).map((a) => ({ id: a.id, at: a.created_at, user: a.user_name, text: a.body })),
     reminders: (p.crm_reminders || []).map((r) => ({ id: r.id, date: r.due_date, note: r.note, completed: r.completed })),
     quotes: (p.crm_quotes || []).map((q) => ({ id: q.id, number: q.quote_number, createdAt: q.created_at, status: q.status, total: Number(q.total), shopifyDraftOrderId: q.shopify_draft_order_id, shopifyDraftOrderName: q.shopify_draft_order_name, invoiceUrl: q.shopify_invoice_url, lines: (q.crm_quote_lines || []).map((l) => ({ id: l.id, productId: l.shopify_variant_id, title: l.product_title, variant: l.variant_title, sku: l.sku, unitPrice: Number(l.unit_price), qty: l.quantity })) })),
@@ -97,7 +99,7 @@ function loadState() {
 function normalizeProspect(p) {
   return {
     contactName: "", email: "", stage: p.customerId ? "Won" : "New Lead",
-    estimatedValue: 0, owner: "Greg", timeline: [], reminders: [], quotes: [], ...p,
+    estimatedValue: 0, owner: "Greg", productInterests: [], timeline: [], reminders: [], quotes: [], ...p,
   };
 }
 
@@ -346,9 +348,27 @@ function contactLastActivity(prospect) {
   return activityDates.sort((a, b) => new Date(b) - new Date(a))[0] || prospect.createdAt;
 }
 
+function selectedContacts() {
+  return state.prospects.filter((prospect) => selectedContactIds.has(prospect.id));
+}
+
+function activeSalespeopleOptions(selected = "") {
+  const members = teamSnapshot.filter((member) => member.active !== false).map((member) => member.name);
+  const owners = [...new Set([...members, ...state.prospects.map((prospect) => prospect.owner).filter(Boolean)])].sort();
+  return owners.map((name) => `<option value="${escapeHtml(name)}"${name === selected ? " selected" : ""}>${escapeHtml(name)}</option>`).join("");
+}
+
+function renderContactSelectionBar() {
+  const contacts = selectedContacts();
+  $("#contactsSelectedCount").textContent = contacts.length;
+  $("#contactsBulkBar").hidden = !contacts.length;
+  ["#bulkTaskBtn", "#bulkEmailGroupBtn", "#bulkReassignBtn"].forEach((selector) => { $(selector).hidden = !isManager(); });
+}
+
 function renderContacts() {
   const search = $("#contactsSearch").value.trim().toLowerCase();
   const stage = $("#contactsStage").value;
+  const interest = $("#contactsProductInterest").value;
   const selectedOwner = $("#contactsOwner").value;
   const owners = [...new Set(state.prospects.map((p) => p.owner).filter(Boolean))].sort();
   const ownerValue = selectedOwner;
@@ -357,8 +377,8 @@ function renderContacts() {
   const [sortField, sortDirection] = $("#contactsSort").value.split(":");
   const direction = sortDirection === "asc" ? 1 : -1;
   const rows = state.prospects.filter((p) => {
-    const haystack = [p.contactName, p.companyName, p.email, p.phone, p.address, p.owner, p.stage].join(" ").toLowerCase();
-    return (!search || haystack.includes(search)) && (!stage || p.stage === stage) && (!ownerValue || p.owner === ownerValue) && (!contactsMineOnly || p.owner === currentUserName());
+    const haystack = [p.contactName, p.companyName, p.email, p.phone, p.address, p.owner, p.stage, ...(p.productInterests || [])].join(" ").toLowerCase();
+    return (!search || haystack.includes(search)) && (!stage || p.stage === stage) && (!interest || (p.productInterests || []).includes(interest)) && (!ownerValue || p.owner === ownerValue) && (!contactsMineOnly || p.owner === currentUserName());
   }).sort((a, b) => {
     let left = sortField === "lastActivity" ? contactLastActivity(a) : a[sortField];
     let right = sortField === "lastActivity" ? contactLastActivity(b) : b[sortField];
@@ -376,18 +396,31 @@ function renderContacts() {
   $("#contactsRange").textContent = rows.length ? `${start + 1}–${Math.min(start + pageSize, rows.length)} of ${rows.length}` : "0 contacts";
   $("#contactsPrev").disabled = contactsPage === 1;
   $("#contactsNext").disabled = contactsPage === pageCount;
+  const selectedOnPage = pageRows.filter((prospect) => selectedContactIds.has(prospect.id)).length;
+  $("#contactsSelectPage").checked = Boolean(pageRows.length && selectedOnPage === pageRows.length);
+  $("#contactsSelectPage").indeterminate = Boolean(selectedOnPage && selectedOnPage < pageRows.length);
+  $("#contactsSelectPage").dataset.pageIds = pageRows.map((prospect) => prospect.id).join(",");
   $("#contactsTableBody").innerHTML = pageRows.length ? pageRows.map((p) => `
-    <tr data-contact-id="${p.id}" tabindex="0">
+    <tr data-contact-id="${p.id}" tabindex="0" class="${selectedContactIds.has(p.id) ? "selected-contact-row" : ""}">
+      <td class="contact-select-cell"><input class="contact-row-checkbox" type="checkbox" data-select-contact="${p.id}" aria-label="Select ${escapeHtml(p.contactName || p.companyName)}" ${selectedContactIds.has(p.id) ? "checked" : ""} /></td>
       <td><strong>${escapeHtml(p.contactName || "No contact name")}</strong></td><td>${escapeHtml(p.companyName)}</td>
-      <td><span class="badge ${stageClass(p.stage)}">${escapeHtml(p.stage)}</span></td><td>${escapeHtml(p.owner)}</td>
-      <td>${escapeHtml(p.email || "—")}</td><td>${escapeHtml(p.phone || "—")}</td><td>${formatMoney(p.estimatedValue)}</td>
+      <td><span class="badge ${stageClass(p.stage)}">${escapeHtml(p.stage)}</span></td>
+      <td><div class="interest-tags">${(p.productInterests || []).length ? p.productInterests.map((item) => `<span class="interest-tag">${escapeHtml(item)}</span>`).join("") : '<span class="status-text">—</span>'}</div></td>
+      <td>${escapeHtml(p.owner)}</td><td>${escapeHtml(p.email || "—")}</td><td>${escapeHtml(p.phone || "—")}</td><td>${formatMoney(p.estimatedValue)}</td>
       <td>${contactLastActivity(p) ? formatDateTime(contactLastActivity(p)) : "—"}</td><td>${p.createdAt ? formatDateTime(p.createdAt) : "—"}</td>
-    </tr>`).join("") : `<tr><td colspan="9"><div class="empty">No contacts match these filters.</div></td></tr>`;
+    </tr>`).join("") : `<tr><td colspan="11"><div class="empty">No contacts match these filters.</div></td></tr>`;
   document.querySelectorAll("[data-contact-id]").forEach((row) => {
     const open = () => openProspect(row.dataset.contactId);
-    row.addEventListener("click", open);
-    row.addEventListener("keydown", (event) => { if (event.key === "Enter") open(); });
+    row.addEventListener("click", (event) => { if (!event.target.closest(".contact-row-checkbox")) open(); });
+    row.addEventListener("keydown", (event) => { if (event.key === "Enter" && !event.target.matches("input")) open(); });
   });
+  document.querySelectorAll("[data-select-contact]").forEach((checkbox) => checkbox.addEventListener("change", (event) => {
+    event.stopPropagation();
+    if (event.target.checked) selectedContactIds.add(event.target.dataset.selectContact);
+    else selectedContactIds.delete(event.target.dataset.selectContact);
+    renderContacts();
+  }));
+  renderContactSelectionBar();
 }
 
 function openContacts() {
@@ -427,6 +460,7 @@ function renderProspect() {
           <p class="contact-line">${escapeHtml(p.email || "No email")}</p>
           <p class="contact-line">${escapeHtml(p.address || "No address")}</p>
           <div class="record-meta"><span class="badge ${stageClass(p.stage)}">${escapeHtml(p.stage)}</span><span class="badge">Owner: ${escapeHtml(p.owner)}</span><span class="badge">Value: ${formatMoney(p.estimatedValue)}</span></div>
+           <div class="record-product-interests"><strong>Product Interest</strong><div class="interest-tags">${(p.productInterests || []).length ? p.productInterests.map((item) => `<span class="interest-tag">${escapeHtml(item)}</span>`).join("") : '<span class="status-text">Not set</span>'}</div></div>
         </div>
         <div class="owner-control">
           <span class="badge">${p.customerId ? "Customer" : "Prospect"}</span>
@@ -534,6 +568,7 @@ function openEditDialog() {
     form.elements[name].value = p[name] ?? "";
   });
   form.elements.owner.disabled = !isManager();
+  form.querySelectorAll('[name="productInterests"]').forEach((input) => { input.checked = (p.productInterests || []).includes(input.value); });
   $("#editDialog").showModal();
 }
 
@@ -946,12 +981,13 @@ async function emailTemplateAction(action, data = {}) {
 }
 
 function bulkEmailAudience() {
+  const selectedIds = new Set(bulkEmailSelectedIds);
   const stage = $("#bulkEmailStage").value;
   const owner = $("#bulkEmailOwner").value;
   const seen = new Set();
   return state.prospects.filter((prospect) => {
     const email = String(prospect.email || "").trim().toLowerCase();
-    if (!email || seen.has(email) || (stage && prospect.stage !== stage) || (owner && prospect.owner !== owner)) return false;
+    if (!email || seen.has(email) || (selectedIds.size && !selectedIds.has(prospect.id)) || (stage && prospect.stage !== stage) || (owner && prospect.owner !== owner)) return false;
     seen.add(email);
     return true;
   });
@@ -959,7 +995,7 @@ function bulkEmailAudience() {
 
 function updateBulkEmailAudience() {
   const audience = bulkEmailAudience();
-  $("#bulkRecipientSummary").textContent = `${audience.length} recipient${audience.length === 1 ? "" : "s"} with valid email addresses`;
+  $("#bulkRecipientSummary").textContent = `${audience.length} recipient${audience.length === 1 ? "" : "s"} with valid email addresses${bulkEmailSelectedIds.length ? " from the selected contact group" : ""}`;
   $("#bulkRecipientPreview").textContent = audience.length ? audience.map((prospect) => `${prospect.companyName} <${prospect.email}>`).join(" · ") : "No matching customers or prospects have an email address.";
 }
 
@@ -1336,12 +1372,84 @@ $("#campaignsBtn").addEventListener("click", openCampaignDashboard);
 $("#refreshCampaignsBtn").addEventListener("click", openCampaignDashboard);
 $("#newCampaignBtn").addEventListener("click", openBulkEmail);
 $("#contactsNewBtn").addEventListener("click", () => $("#newProspectBtn").click());
+$("#contactsProductInterest").addEventListener("change", () => { contactsPage = 1; renderContacts(); });
+$("#contactsSelectPage").addEventListener("change", (event) => {
+  const ids = String(event.target.dataset.pageIds || "").split(",").filter(Boolean);
+  ids.forEach((id) => event.target.checked ? selectedContactIds.add(id) : selectedContactIds.delete(id));
+  renderContacts();
+});
+$("#bulkClearSelectionBtn").addEventListener("click", () => { selectedContactIds.clear(); renderContacts(); });
+$("#bulkEmailGroupBtn").addEventListener("click", () => {
+  const selected = selectedContacts();
+  if (!selected.length) return;
+  bulkEmailSelectedIds = selected.map((prospect) => prospect.id);
+  $("#bulkEmailStage").value = "";
+  $("#bulkEmailOwner").value = "";
+  openBulkEmail();
+});
+$("#bulkAnalyzeBtn").addEventListener("click", () => {
+  const contacts = selectedContacts();
+  const total = contacts.reduce((sum, prospect) => sum + Number(prospect.estimatedValue || 0), 0);
+  const summarize = (values) => Object.entries(values.reduce((result, value) => { result[value || "Not set"] = (result[value || "Not set"] || 0) + 1; return result; }, {})).sort((a, b) => b[1] - a[1]);
+  const sections = [
+    ["Pipeline Stage", summarize(contacts.map((item) => item.stage))],
+    ["Product Interest", summarize(contacts.flatMap((item) => item.productInterests?.length ? item.productInterests : ["Not set"]))],
+    ["Salesperson", summarize(contacts.map((item) => item.owner))]
+  ];
+  $("#contactAnalysisContent").innerHTML = `<div class="analysis-stat-grid"><article><strong>${contacts.length}</strong><span>Selected contacts</span></article><article><strong>${formatMoney(total)}</strong><span>Pipeline value</span></article><article><strong>${contacts.filter((item) => item.email).length}</strong><span>Have email</span></article></div>${sections.map(([title, rows]) => `<section class="analysis-breakdown"><h3>${title}</h3>${rows.map(([label, count]) => `<div><span>${escapeHtml(label)}</span><strong>${count}</strong></div>`).join("")}</section>`).join("")}`;
+  $("#contactAnalysisDialog").showModal();
+});
+$("#bulkTaskBtn").addEventListener("click", () => {
+  const form = $("#bulkTaskForm");
+  form.reset();
+  form.elements.dueDate.value = dateKey();
+  form.elements.assignedTo.innerHTML = activeSalespeopleOptions(currentUserName());
+  $("#bulkTaskSelectionSummary").textContent = `Creating one task for each of ${selectedContacts().length} selected contacts.`;
+  $("#bulkTaskAssigneeLabel").hidden = true;
+  $("#bulkTaskDialog").showModal();
+});
+$("#bulkReassignBtn").addEventListener("click", () => {
+  $("#bulkReassignForm").elements.owner.innerHTML = activeSalespeopleOptions();
+  $("#bulkReassignSelectionSummary").textContent = `Reassigning ${selectedContacts().length} selected contacts.`;
+  $("#bulkReassignDialog").showModal();
+});
+$("#bulkTaskForm").elements.assignmentMode.addEventListener("change", (event) => { $("#bulkTaskAssigneeLabel").hidden = event.target.value !== "selected"; });
+document.querySelectorAll("[data-close-bulk-dialog]").forEach((button) => button.addEventListener("click", () => button.closest("dialog").close()));
+$("#bulkTaskForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = new FormData(form);
+  const button = form.querySelector('[type="submit"]');
+  button.disabled = true;
+  try {
+    const result = await crmAction("bulkCreateTasks", { prospectIds: [...selectedContactIds], title: data.get("title"), dueDate: data.get("dueDate"), assignmentMode: data.get("assignmentMode"), assignedTo: data.get("assignedTo"), taskType: data.get("taskType"), priority: data.get("priority"), notes: data.get("notes") });
+    $("#bulkTaskDialog").close();
+    selectedContactIds.clear();
+    await refreshCrm();
+    openContacts();
+    showToast("Tasks created", `${result.created} follow-up task${result.created === 1 ? "" : "s"} added.`);
+  } catch (error) { alert(error.message); } finally { button.disabled = false; }
+});
+$("#bulkReassignForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const button = form.querySelector('[type="submit"]');
+  button.disabled = true;
+  try {
+    const result = await crmAction("bulkReassignProspects", { prospectIds: [...selectedContactIds], owner: new FormData(form).get("owner") });
+    $("#bulkReassignDialog").close();
+    selectedContactIds.clear();
+    await refreshCrm();
+    openContacts();
+    showToast("Contacts reassigned", `${result.updated} contact${result.updated === 1 ? "" : "s"} now belong to ${result.owner}.`);
+  } catch (error) { alert(error.message); } finally { button.disabled = false; }
+});
 $("#contactsSearch").addEventListener("input", () => { contactsPage = 1; renderContacts(); });
 $("#contactsStage").addEventListener("change", () => { contactsPage = 1; renderContacts(); });
 $("#contactsOwner").addEventListener("change", () => { contactsPage = 1; renderContacts(); });
 $("#contactsSort").addEventListener("change", () => { contactsPage = 1; renderContacts(); });
 $("#contactsClearFilters").addEventListener("click", () => {
-  $("#contactsSearch").value = ""; $("#contactsStage").value = ""; $("#contactsOwner").value = ""; $("#contactsSort").value = "lastActivity:desc"; contactsMineOnly = false; contactsPage = 1; $("#allContactsTab").classList.add("active"); $("#myContactsTab").classList.remove("active"); renderContacts();
+  $("#contactsSearch").value = ""; $("#contactsStage").value = ""; $("#contactsOwner").value = ""; $("#contactsProductInterest").value = ""; $("#contactsSort").value = "lastActivity:desc"; contactsMineOnly = false; contactsPage = 1; $("#allContactsTab").classList.add("active"); $("#myContactsTab").classList.remove("active"); renderContacts();
 });
 $("#myContactsTab").addEventListener("click", (event) => {
   contactsMineOnly = true;
@@ -1359,7 +1467,7 @@ $("#allContactsTab").addEventListener("click", (event) => {
 });
 $("#contactsPrev").addEventListener("click", () => { contactsPage = Math.max(1, contactsPage - 1); renderContacts(); });
 $("#contactsNext").addEventListener("click", () => { contactsPage += 1; renderContacts(); });
-$("#bulkEmailBtn").addEventListener("click", openBulkEmail);
+$("#bulkEmailBtn").addEventListener("click", () => { bulkEmailSelectedIds = []; openBulkEmail(); });
 $("#importProspectsBtn").addEventListener("click", () => {
   $("#importForm").reset();
   $("#importForm").elements.owner.value = currentUserName();
@@ -1473,6 +1581,7 @@ $("#prospectForm").addEventListener("submit", async (event) => {
     stage: String(data.get("stage") || "New Lead"),
     estimatedValue: Number(data.get("estimatedValue") || 0),
     owner: String(data.get("owner") || currentUserName()),
+    productInterests: data.getAll("productInterests").map(String),
     createdAt,
     createdBy: currentUserName(),
     customerId: null,
@@ -1527,6 +1636,7 @@ $("#editForm").addEventListener("submit", async (event) => {
   });
   p.owner = isManager() ? String(data.get("owner") || "Greg") : currentUserName();
   p.estimatedValue = Number(data.get("estimatedValue") || 0);
+  p.productInterests = data.getAll("productInterests").map(String);
   await crmAction("updateProspect", { ...p, id: p.id, oldStage, user: currentUserName() });
   $("#editDialog").close();
   await refreshCrm(p.id);
