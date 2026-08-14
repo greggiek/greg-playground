@@ -100,6 +100,43 @@
         <div class="team-page-heading"><div><p class="eyebrow">MANAGER CONTROL CENTER</p><h2>Team Activity</h2><p class="status-text">A 30-day snapshot of BM Prospect activity and account access.</p></div><button id="addTeamMemberBtn" class="btn btn-primary" type="button">+ Add User</button></div>
         <div class="stats-grid team-stats"><article class="stat-card"><span>Active Users</span><strong id="teamActiveCount">0</strong></article><article class="stat-card"><span>Open Tasks</span><strong id="teamOpenTasks">0</strong></article><article class="stat-card"><span>Overdue</span><strong id="teamOverdueTasks">0</strong></article><article class="stat-card"><span>Emails Sent · 30d</span><strong id="teamEmailsSent">0</strong></article></div>
         <div id="teamCards" class="team-card-grid"></div>
+
+        <section class="page-card dormant-automation-card" aria-labelledby="dormantAutomationTitle">
+          <div class="dormant-automation-heading">
+            <div>
+              <p class="eyebrow">AUTOMATED FOLLOW-UP</p>
+              <h2 id="dormantAutomationTitle">Dormant Prospect Reminders</h2>
+              <p class="status-text">Automatically assign follow-up tasks when a prospect has gone too long without recorded activity.</p>
+            </div>
+            <label class="automation-switch"><input id="dormantEnabled" form="dormantAutomationForm" name="enabled" type="checkbox" /> <span>Automation enabled</span></label>
+          </div>
+          <form id="dormantAutomationForm">
+            <div class="dormant-settings-grid">
+              <label><span class="field-label">Days without contact</span><input name="inactivityDays" type="number" min="1" max="365" value="30" required /><small>Activity, quotes, and sent emails reset the clock.</small></label>
+              <label><span class="field-label">Reminder due in</span><select name="dueInDays"><option value="0">Today</option><option value="1">1 day</option><option value="2">2 days</option><option value="3">3 days</option><option value="7">1 week</option></select><small>How soon the new task is due.</small></label>
+              <label><span class="field-label">Priority</span><select name="priority"><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option></select><small>Priority assigned to automated tasks.</small></label>
+            </div>
+            <fieldset class="dormant-stage-fieldset">
+              <legend>Apply to pipeline stages</legend>
+              <div class="dormant-stage-options">
+                <label><input type="checkbox" name="stages" value="New Lead" /> New Lead</label>
+                <label><input type="checkbox" name="stages" value="Contacted" /> Contacted</label>
+                <label><input type="checkbox" name="stages" value="Quoting" /> Quoting</label>
+                <label><input type="checkbox" name="stages" value="Follow-Up" /> Follow-Up</label>
+                <label><input type="checkbox" name="stages" value="Won" /> Won</label>
+                <label><input type="checkbox" name="stages" value="Lost" /> Lost</label>
+              </div>
+            </fieldset>
+            <label class="dormant-skip-option"><input name="skipIfOpenTask" type="checkbox" checked /> Do not create another reminder when the prospect already has an open task</label>
+            <div class="dormant-automation-footer">
+              <p id="dormantAutomationStatus" class="status-text">Automation has not run yet.</p>
+              <div class="button-row">
+                <button id="runDormantAutomationBtn" class="btn btn-secondary" type="button">Run Check Now</button>
+                <button class="btn btn-primary" type="submit">Save Automation</button>
+              </div>
+            </div>
+          </form>
+        </section>
       </section>
 
       <section id="campaignsView" class="view">

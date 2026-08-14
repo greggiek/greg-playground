@@ -16,6 +16,7 @@ let teamSnapshot = [];
 let shopifyCollections = [];
 let selectedShopifyCollectionId = "";
 let prospectSaveInFlight = false;
+let dormantSettings = null;
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -65,6 +66,7 @@ async function refreshCrm(openId) {
   applyProfilePermissions();
   state = { prospects: (body.prospects || []).map(fromDbProspect), tasks: (body.tasks || []).map(fromDbTask) };
   teamSnapshot = body.teamSnapshot || [];
+  dormantSettings = body.dormantSettings || dormantSettings;
   saveState();
   renderHome();
   loadGoogleConnection().catch(() => {});
@@ -1104,6 +1106,35 @@ function renderTeamSnapshot() {
     </article>`).join("") : `<div class="empty">No BM Prospect users yet.</div>`;
   document.querySelectorAll("[data-team-role]").forEach((select) => select.addEventListener("change", async () => { try { const member = teamSnapshot.find((item) => item.id === select.dataset.teamRole); await crmAction("updateUser", { id: member.id, role: select.value, active: member.active }); await refreshCrm(); renderTeamSnapshot(); } catch (error) { alert(error.message); } }));
   document.querySelectorAll("[data-team-active]").forEach((button) => button.addEventListener("click", async () => { const member = teamSnapshot.find((item) => item.id === button.dataset.teamActive); if (member.active && !confirm(`Deactivate ${member.name}? They will immediately lose BM Prospect access.`)) return; try { await crmAction("updateUser", { id: member.id, role: member.role, active: !member.active }); await refreshCrm(); renderTeamSnapshot(); } catch (error) { alert(error.message); } }));
+  renderDormantAutomation();
+}
+
+function renderDormantAutomation() {
+  if (!isManager()) return;
+  const settings = dormantSettings || {
+    enabled: false,
+    inactivity_days: 30,
+    due_in_days: 1,
+    stages: ["New Lead", "Contacted", "Quoting", "Follow-Up"],
+    skip_if_open_task: true,
+    priority: "normal",
+    last_run_at: null,
+    last_created_count: 0,
+  };
+  const form = $("#dormantAutomationForm");
+  form.elements.enabled.checked = Boolean(settings.enabled);
+  form.elements.inactivityDays.value = settings.inactivity_days;
+  form.elements.dueInDays.value = settings.due_in_days;
+  form.elements.priority.value = settings.priority;
+  form.elements.skipIfOpenTask.checked = settings.skip_if_open_task !== false;
+  const selectedStages = new Set(settings.stages || []);
+  form.querySelectorAll('[name="stages"]').forEach((input) => { input.checked = selectedStages.has(input.value); });
+  $("#runDormantAutomationBtn").disabled = !settings.enabled;
+  $("#dormantAutomationStatus").textContent = settings.last_run_at
+    ? `Last checked ${formatDateTime(settings.last_run_at)} · ${Number(settings.last_created_count || 0)} reminder${Number(settings.last_created_count || 0) === 1 ? "" : "s"} created · Updated by ${settings.updated_by || "System"}`
+    : settings.enabled
+      ? "Enabled · The first automatic check will run daily around 9:00 AM Eastern."
+      : "Off · Save your rules and enable automation when you are ready.";
 }
 
 function openTeamDashboard() {
@@ -1239,6 +1270,49 @@ $("#quoteProspectSearch").addEventListener("input", renderQuoteProspectPicker);
 document.querySelectorAll("[data-close-quote-picker]").forEach((button) => button.addEventListener("click", () => $("#quoteProspectDialog").close()));
 $("#teamBtn").addEventListener("click", openTeamDashboard);
 $("#addTeamMemberBtn").addEventListener("click", () => { $("#teamMemberForm").reset(); $("#teamMemberDialog").showModal(); });
+$("#dormantAutomationForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = new FormData(form);
+  const button = form.querySelector('[type="submit"]');
+  button.disabled = true;
+  try {
+    const result = await crmAction("updateDormantSettings", {
+      enabled: data.get("enabled") === "on",
+      inactivityDays: Number(data.get("inactivityDays")),
+      dueInDays: Number(data.get("dueInDays")),
+      priority: String(data.get("priority") || "normal"),
+      stages: data.getAll("stages").map(String),
+      skipIfOpenTask: data.get("skipIfOpenTask") === "on",
+    });
+    dormantSettings = result.settings;
+    renderDormantAutomation();
+    showToast("Dormant reminder automation saved", result.settings.enabled ? "The daily follow-up check is active." : "The automation is currently turned off.");
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+$("#runDormantAutomationBtn").addEventListener("click", async (event) => {
+  if (!dormantSettings?.enabled) return alert("Enable and save the automation first.");
+  if (!confirm("Run the dormant prospect check now? Qualifying prospects will receive follow-up tasks assigned to their owners.")) return;
+  const button = event.currentTarget;
+  button.disabled = true;
+  try {
+    const result = await crmAction("runDormantAutomation", {});
+    dormantSettings = result.settings;
+    await refreshCrm();
+    renderTeamSnapshot();
+    showToast("Dormant prospect check complete", `${result.createdCount} reminder${result.createdCount === 1 ? "" : "s"} created.`);
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    button.disabled = false;
+  }
+});
+
 $("#activityTypeFilter").addEventListener("change", renderHomeActivity);
 $("#createTaskBtn").addEventListener("click", () => {
   const form = $("#taskForm");

@@ -30,6 +30,11 @@ async function teamActivitySnapshot(prospects, tasks) {
   });
 }
 
+async function getDormantSettings() {
+  const rows = await supabaseRest("crm_dormant_settings?id=eq.true&select=*&limit=1");
+  return rows?.[0] || null;
+}
+
 async function getProspect(id) {
   if (!id) return null;
   const rows = await supabaseRest(`crm_prospects?id=eq.${encodeURIComponent(id)}&select=id,owner_name`);
@@ -76,10 +81,43 @@ module.exports = async function handler(req, res) {
       const taskFilter = isManager(user) ? "" : `assigned_to=eq.${encodeURIComponent(user.name)}&`;
       const tasks = await supabaseRest(`crm_tasks?${taskFilter}select=*&order=due_date.asc,created_at.asc`);
       const teamSnapshot = isManager(user) ? await teamActivitySnapshot(prospects, tasks) : [];
-      return res.status(200).json({ prospects, tasks, currentUser: user, teamSnapshot });
+      const dormantSettings = isManager(user) ? await getDormantSettings() : null;
+      return res.status(200).json({ prospects, tasks, currentUser: user, teamSnapshot, dormantSettings });
     }
     if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed." });
     const { action, data = {} } = req.body || {};
+
+    if (action === "updateDormantSettings") {
+      if (!(await requireManager(req, res))) return;
+      const allowedStages = new Set(["New Lead", "Contacted", "Quoting", "Follow-Up", "Won", "Lost"]);
+      const stages = [...new Set(Array.isArray(data.stages) ? data.stages.filter((stage) => allowedStages.has(stage)) : [])];
+      const inactivityDays = Math.min(365, Math.max(1, Math.round(Number(data.inactivityDays || 30))));
+      const dueInDays = Math.min(30, Math.max(0, Math.round(Number(data.dueInDays || 0))));
+      const priority = ["low", "normal", "high"].includes(data.priority) ? data.priority : "normal";
+      if (!stages.length) return res.status(400).json({ error: "Choose at least one pipeline stage." });
+      const [settings] = await supabaseRest("crm_dormant_settings?id=eq.true", {
+        method: "PATCH",
+        headers: { Prefer: "return=representation" },
+        body: JSON.stringify({
+          enabled: data.enabled === true,
+          inactivity_days: inactivityDays,
+          due_in_days: dueInDays,
+          stages,
+          skip_if_open_task: data.skipIfOpenTask !== false,
+          priority,
+          updated_by: user.name,
+          updated_at: new Date().toISOString(),
+        }),
+      });
+      return res.status(200).json({ settings });
+    }
+
+    if (action === "runDormantAutomation") {
+      if (!(await requireManager(req, res))) return;
+      const createdCount = Number(await supabaseRest("rpc/crm_run_dormant_reminders", { method: "POST", body: "{}" }) || 0);
+      const settings = await getDormantSettings();
+      return res.status(200).json({ createdCount, settings });
+    }
 
     if (action === "createUser") {
       if (!(await requireManager(req, res))) return;
