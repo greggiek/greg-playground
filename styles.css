@@ -1038,10 +1038,6 @@ input:focus, textarea:focus, select:focus {
   object-fit: contain;
 }
 
-.app-brand h1 {
-  color: #fff;
-}
-
 @media (max-width: 700px) {
   .app-header > .app-brand {
     width: 100%;
@@ -1051,15 +1047,12 @@ input:focus, textarea:focus, select:focus {
   }
 
   .app-brand-logo-shell {
-    width: 154px;
-    flex: 0 0 154px;
+    width: 190px;
+    flex: 0 0 190px;
     padding: 4px 6px;
     border-radius: 7px;
   }
 
-  .app-brand h1 {
-    white-space: nowrap;
-  }
 }
 
 @media (min-width: 1100px) {
