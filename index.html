@@ -169,7 +169,17 @@
             <select id="contactsSort"><option value="lastActivity:desc">Last activity: newest</option><option value="lastActivity:asc">Last activity: oldest</option><option value="companyName:asc">Company: A–Z</option><option value="companyName:desc">Company: Z–A</option><option value="contactName:asc">Contact: A–Z</option><option value="contactName:desc">Contact: Z–A</option><option value="createdAt:desc">Created: newest</option><option value="createdAt:asc">Created: oldest</option><option value="estimatedValue:desc">Value: highest</option><option value="estimatedValue:asc">Value: lowest</option></select>
             <button id="contactsClearFilters" class="btn btn-secondary" type="button">Clear</button>
           </div>
-          <div class="contacts-table-wrap"><table class="contacts-table"><thead><tr><th>Name</th><th>Company</th><th>Stage</th><th>Owner</th><th>Email</th><th>Phone</th><th>Value</th><th>Last activity</th><th>Created</th></tr></thead><tbody id="contactsTableBody"></tbody></table></div>
+          <div id="contactsBulkBar" class="contacts-bulk-bar" hidden>
+            <strong><span id="contactsSelectedCount">0</span> selected</strong>
+            <div class="button-row">
+              <button id="bulkTaskBtn" class="btn btn-secondary btn-small" type="button">+ Create Tasks</button>
+              <button id="bulkEmailGroupBtn" class="btn btn-secondary btn-small" type="button">Email Group</button>
+              <button id="bulkReassignBtn" class="btn btn-secondary btn-small" type="button">Reassign</button>
+              <button id="bulkAnalyzeBtn" class="btn btn-secondary btn-small" type="button">Analyze</button>
+              <button id="bulkClearSelectionBtn" class="btn btn-ghost btn-small" type="button">Clear</button>
+            </div>
+          </div>
+          <div class="contacts-table-wrap"><table class="contacts-table"><thead><tr><th class="contact-select-cell"><input id="contactsSelectPage" type="checkbox" aria-label="Select contacts on this page" /></th><th>Name</th><th>Company</th><th>Stage</th><th>Product Interest</th><th>Owner</th><th>Email</th><th>Phone</th><th>Value</th><th>Last activity</th><th>Created</th></tr></thead><tbody id="contactsTableBody"></tbody></table></div>
           <div class="contacts-pagination"><span id="contactsRange"></span><div><button id="contactsPrev" class="btn btn-secondary btn-small" type="button">← Previous</button><button id="contactsNext" class="btn btn-secondary btn-small" type="button">Next →</button></div></div>
         </div>
       </section>
@@ -281,6 +291,34 @@
       <input id="quoteProspectSearch" type="search" placeholder="Company, contact, email, or phone…" autocomplete="off" />
       <div id="quoteProspectResults" class="quote-prospect-results"></div>
     </form>
+  </dialog>
+
+  <dialog id="bulkTaskDialog">
+    <form id="bulkTaskForm" method="dialog">
+      <div class="dialog-header"><div><p class="eyebrow">BULK ACTION</p><h2>Create Tasks</h2></div><button type="button" class="icon-btn" data-close-bulk-dialog aria-label="Close">×</button></div>
+      <p id="bulkTaskSelectionSummary" class="status-text"></p>
+      <label>Task Title<input name="title" value="Follow up" required maxlength="120" /></label>
+      <div class="form-grid"><label>Due Date<input name="dueDate" type="date" required /></label><label>Assignment<select name="assignmentMode"><option value="owner">Each contact's current owner</option><option value="selected">One selected salesperson</option></select></label></div>
+      <label id="bulkTaskAssigneeLabel" hidden>Assign To<select name="assignedTo"></select></label>
+      <div class="form-grid"><label>Task Type<select name="taskType"><option value="follow_up">Follow-up</option><option value="call">Call</option><option value="email">Email</option><option value="quote">Quote</option></select></label><label>Priority<select name="priority"><option value="normal">Normal</option><option value="high">High</option><option value="low">Low</option></select></label></div>
+      <label>Notes<textarea name="notes" rows="3" maxlength="2000"></textarea></label>
+      <div class="button-row"><button class="btn btn-primary" type="submit">Create Tasks</button><button class="btn btn-secondary" type="button" data-close-bulk-dialog>Cancel</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="bulkReassignDialog">
+    <form id="bulkReassignForm" method="dialog">
+      <div class="dialog-header"><div><p class="eyebrow">BULK ACTION</p><h2>Reassign Contacts</h2></div><button type="button" class="icon-btn" data-close-bulk-dialog aria-label="Close">×</button></div>
+      <p id="bulkReassignSelectionSummary" class="status-text"></p>
+      <label>New Salesperson<select name="owner" required></select></label>
+      <div class="button-row"><button class="btn btn-primary" type="submit">Reassign Contacts</button><button class="btn btn-secondary" type="button" data-close-bulk-dialog>Cancel</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="contactAnalysisDialog" class="contact-analysis-dialog">
+    <div class="dialog-header"><div><p class="eyebrow">SELECTED GROUP</p><h2>Contact Analysis</h2></div><button type="button" class="icon-btn" data-close-bulk-dialog aria-label="Close">×</button></div>
+    <div id="contactAnalysisContent"></div>
+    <div class="button-row"><button class="btn btn-secondary" type="button" data-close-bulk-dialog>Close</button></div>
   </dialog>
 
   <dialog id="prospectDialog">
