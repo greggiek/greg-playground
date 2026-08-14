@@ -59,7 +59,7 @@ function fromDbTask(task) {
 async function refreshCrm(openId) {
   const response = await crmFetch("/api/crm");
   const body = await response.json();
-  if (!response.ok) throw new Error(body.error || "Could not load CRM.");
+  if (!response.ok) throw new Error(body.error || "Could not load BM Prospect.");
   currentUser = body.currentUser || currentUser;
   showCrm();
   applyProfilePermissions();
@@ -75,7 +75,7 @@ async function refreshCrm(openId) {
 async function crmAction(action, data) {
   const response = await crmFetch("/api/crm", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, data }) });
   const body = await response.json();
-  if (!response.ok) throw new Error(body.error || "CRM update failed.");
+  if (!response.ok) throw new Error(body.error || "BM Prospect update failed.");
   return body;
 }
 
@@ -87,7 +87,7 @@ function loadState() {
       return parsed;
     }
   } catch (error) {
-    console.warn("Could not load saved CRM data:", error);
+    console.warn("Could not load saved BM Prospect data:", error);
   }
   return { prospects: [] };
 }
@@ -498,7 +498,7 @@ function renderProspect() {
 
 async function deleteCurrentProspect() {
   const p = prospectById(currentProspectId);
-  const typed = prompt(`This permanently deletes ${p.companyName} and every attached note, reminder, and CRM quote.\n\nType the company name exactly to confirm:`);
+  const typed = prompt(`This permanently deletes ${p.companyName} and every attached note, reminder, and BM Prospect quote.\n\nType the company name exactly to confirm:`);
   if (typed !== p.companyName) {
     if (typed !== null) alert("Company name did not match. Nothing was deleted.");
     return;
@@ -817,14 +817,14 @@ async function saveQuote(emailAfterSave = false) {
   const saveButton = $("#saveQuoteBtn");
   saveButton.disabled = true;
   $("#emailQuoteBtn").disabled = true;
-  saveButton.textContent = "Saving in CRM…";
+  saveButton.textContent = "Saving in BM Prospect…";
   try {
     await crmAction("saveQuote", { prospectId: p.id, quoteNumber, lines: draftQuoteLines, createdBy: currentUserName() });
   } catch (error) {
     alert(`Quote was not saved: ${error.message}`);
     saveButton.disabled = false;
     $("#emailQuoteBtn").disabled = false;
-    saveButton.textContent = "Save Draft in CRM";
+    saveButton.textContent = "Save Draft in BM Prospect";
     return;
   }
   const quote = {
@@ -844,7 +844,7 @@ async function saveQuote(emailAfterSave = false) {
     id: uid("activity"),
     at: nowIso(),
     user: currentUserName(),
-    text: `Saved CRM Quote ${quoteNumber} — ${formatMoney(total)}`
+    text: `Saved BM Prospect Quote ${quoteNumber} — ${formatMoney(total)}`
   });
 
   saveState();
@@ -852,7 +852,7 @@ async function saveQuote(emailAfterSave = false) {
   showView("prospectView");
   saveButton.disabled = false;
   $("#emailQuoteBtn").disabled = false;
-  saveButton.textContent = "Save Draft in CRM";
+  saveButton.textContent = "Save Draft in BM Prospect";
   await refreshCrm(p.id);
   if (emailAfterSave) {
     const itemLines = draftQuoteLines.map((line) => `${line.qty} × ${line.title}${line.variant ? ` — ${line.variant}` : ""} @ ${formatMoney(line.unitPrice)} = ${formatMoney(line.unitPrice * line.qty)}`);
@@ -886,7 +886,7 @@ async function deleteQuote(quoteId) {
   const quote = p.quotes.find((item) => item.id === quoteId);
   if (!quote) return;
   const shopifyNote = quote.status === "converted" ? "\n\nThe Shopify draft order will NOT be deleted." : "";
-  if (!confirm(`Permanently delete CRM quote ${quote.number}?${shopifyNote}`)) return;
+  if (!confirm(`Permanently delete BM Prospect quote ${quote.number}?${shopifyNote}`)) return;
   await crmAction("deleteQuote", { quoteId, user: currentUserName() });
   await refreshCrm(p.id);
 }
@@ -1101,9 +1101,9 @@ function renderTeamSnapshot() {
       <div class="team-member-top"><div class="team-identity"><span class="team-avatar">${escapeHtml(initials(member.name))}</span><div><strong>${escapeHtml(member.name)}</strong><small>${escapeHtml(member.email)}</small><small>${member.lastActivityAt ? `Last active ${escapeHtml(formatDateTime(member.lastActivityAt))}` : "No activity yet"}</small></div></div><span class="badge">${member.active ? "Active" : "Inactive"}</span></div>
       <div class="team-metrics"><div class="team-metric"><strong>${member.contactsOwned}</strong><span>Contacts</span></div><div class="team-metric"><strong>${member.openTasks}</strong><span>Open tasks</span></div><div class="team-metric"><strong>${member.completedTasks30}</strong><span>Completed</span></div><div class="team-metric"><strong>${member.activities30}</strong><span>Activities</span></div><div class="team-metric"><strong>${member.quotes30}</strong><span>Quotes</span></div><div class="team-metric"><strong>${member.emails30}</strong><span>Emails</span></div><div class="team-metric"><strong>${member.overdueTasks}</strong><span>Overdue</span></div><div class="team-metric"><strong>${member.last_login_at ? "Yes" : "No"}</strong><span>Logged in</span></div></div>
       <div class="team-member-footer"><div class="team-connection"><span class="badge">${member.googleConnected ? "Google ✓" : "Google —"}</span><span class="badge">${member.calendarConnected ? "Calendar ✓" : "Calendar —"}</span></div><div class="team-controls"><select data-team-role="${member.id}" aria-label="Role for ${escapeHtml(member.name)}"><option value="sales_rep"${member.role === "sales_rep" ? " selected" : ""}>Salesperson</option><option value="manager"${member.role === "manager" ? " selected" : ""}>Manager</option></select><button class="btn btn-small ${member.active ? "btn-danger" : "btn-secondary"}" data-team-active="${member.id}" data-active="${member.active}" type="button">${member.active ? "Deactivate" : "Reactivate"}</button></div></div>
-    </article>`).join("") : `<div class="empty">No CRM users yet.</div>`;
+    </article>`).join("") : `<div class="empty">No BM Prospect users yet.</div>`;
   document.querySelectorAll("[data-team-role]").forEach((select) => select.addEventListener("change", async () => { try { const member = teamSnapshot.find((item) => item.id === select.dataset.teamRole); await crmAction("updateUser", { id: member.id, role: select.value, active: member.active }); await refreshCrm(); renderTeamSnapshot(); } catch (error) { alert(error.message); } }));
-  document.querySelectorAll("[data-team-active]").forEach((button) => button.addEventListener("click", async () => { const member = teamSnapshot.find((item) => item.id === button.dataset.teamActive); if (member.active && !confirm(`Deactivate ${member.name}? They will immediately lose CRM access.`)) return; try { await crmAction("updateUser", { id: member.id, role: member.role, active: !member.active }); await refreshCrm(); renderTeamSnapshot(); } catch (error) { alert(error.message); } }));
+  document.querySelectorAll("[data-team-active]").forEach((button) => button.addEventListener("click", async () => { const member = teamSnapshot.find((item) => item.id === button.dataset.teamActive); if (member.active && !confirm(`Deactivate ${member.name}? They will immediately lose BM Prospect access.`)) return; try { await crmAction("updateUser", { id: member.id, role: member.role, active: !member.active }); await refreshCrm(); renderTeamSnapshot(); } catch (error) { alert(error.message); } }));
 }
 
 function openTeamDashboard() {
@@ -1334,7 +1334,7 @@ $("#teamMemberForm").addEventListener("submit", async (event) => {
     $("#teamMemberDialog").close();
     await refreshCrm();
     renderTeamSnapshot();
-    showToast("CRM user added", "They can now sign in with their company Google account.");
+    showToast("BM Prospect user added", "They can now sign in with their company Google account.");
   } catch (error) { alert(error.message); } finally { button.disabled = false; }
 });
 
@@ -1427,11 +1427,11 @@ $("#prospectForm").addEventListener("submit", async (event) => {
     const created = await crmAction("createProspect", { ...prospect, notes });
     form.reset();
     $("#prospectDialog").close();
-    showToast("Prospect saved", `${companyName} was added to the CRM.`);
+    showToast("Prospect saved", `${companyName} was added to BM Prospect.`);
     try {
       await refreshCrm(created.prospect.id);
     } catch (refreshError) {
-      showToast("Prospect saved — refresh needed", `${companyName} is in the CRM. Refresh the page to see it.`, "warning");
+      showToast("Prospect saved — refresh needed", `${companyName} is in BM Prospect. Refresh the page to see it.`, "warning");
     }
   } catch (error) {
     alert(`Prospect was not saved: ${error.message}`);
@@ -1506,7 +1506,7 @@ function exportCsv() {
   const csv = [headers, ...rows].map((row) => row.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(",")).join("\n");
   const link = document.createElement("a");
   link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-  link.download = `bargain-crm-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.download = `bm-prospect-${new Date().toISOString().slice(0, 10)}.csv`;
   link.click();
   URL.revokeObjectURL(link.href);
 }
@@ -1561,5 +1561,5 @@ $("#cancelQuoteBtn").addEventListener("click", () => {
   showView("prospectView");
 });
 
-$("#prospectList").innerHTML = `<div class="empty">Loading your CRM profile…</div>`;
-refreshCrm().catch((error) => { console.warn("CRM load failed:", error); showLogin(error.message === "Invalid CRM access code." ? "Sign in to continue." : error.message); });
+$("#prospectList").innerHTML = `<div class="empty">Loading your BM Prospect profile…</div>`;
+refreshCrm().catch((error) => { console.warn("BM Prospect load failed:", error); showLogin(error.message === "Invalid CRM access code." ? "Sign in to continue." : error.message); });
