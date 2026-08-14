@@ -201,7 +201,7 @@ module.exports = async function handler(req, res) {
 
     if (action === "updateProspect") {
       if (!await requireProspectAccess(user, data.id, res)) return;
-      const owner = isManager(user) ? validOwner(data.owner) : user.name;
+      const owner = isManager(user) ? await activeOwner(data.owner, user.name) : user.name;
       const patch = { company_name: data.companyName, contact_name: data.contactName || "", email: data.email || "", phone: data.phone || "", address: data.address || "", stage: data.stage, estimated_value: Number(data.estimatedValue || 0), owner_name: owner, product_interests: cleanProductInterests(data.productInterests) };
       const [prospect] = await supabaseRest(`crm_prospects?id=eq.${encodeURIComponent(data.id)}`, { method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify(patch) });
       if (data.oldStage && data.oldStage !== data.stage) await supabaseRest("crm_activities", { method: "POST", body: JSON.stringify({ prospect_id: data.id, activity_type: "stage", body: `Moved from ${data.oldStage} to ${data.stage}.`, user_name: user.name }) });
