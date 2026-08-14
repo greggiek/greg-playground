@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bargain Prospect CRM</title>
+  <title>BM Prospect</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -11,12 +11,12 @@
     <div class="login-card">
       <div class="login-mark">BM</div>
       <p class="eyebrow">BARGAIN MOULDING</p>
-      <h1>Prospect CRM</h1>
+      <h1>BM Prospect</h1>
       <p class="login-copy">Sign in with your company Google account to access your contacts, tasks, email, and calendar.</p>
       <button id="googleLoginBtn" class="google-login-btn" type="button"><span class="google-g">G</span> Continue with Google</button>
       <button id="showPasscodeBtn" class="login-fallback-link" type="button">Use emergency passcode</button>
       <form id="passcodeLoginForm" class="passcode-login" hidden>
-        <label>CRM passcode<input name="passcode" type="password" autocomplete="current-password" required /></label>
+        <label>BM Prospect passcode<input name="passcode" type="password" autocomplete="current-password" required /></label>
         <button class="btn btn-secondary" type="submit">Sign in with passcode</button>
       </form>
       <p id="loginError" class="login-error" role="alert"></p>
@@ -27,7 +27,7 @@
     <header class="app-header">
       <div>
         <p class="eyebrow">BARGAIN MOULDING</p>
-        <h1>Prospect CRM</h1>
+        <h1>BM Prospect</h1>
       </div>
       <div class="header-actions">
         <span id="profileBadge" class="profile-badge" hidden></span>
@@ -62,7 +62,7 @@
         </div>
 
         <section class="activity-feed-card">
-          <div class="activity-feed-heading"><div><p class="eyebrow">LIVE CRM</p><h3>Activity Feed</h3></div><select id="activityTypeFilter" aria-label="Filter activity type"><option value="">All activity</option><option value="contact">Contacts</option><option value="note">Notes</option><option value="quote">Quotes</option><option value="email_sent">Email sent</option><option value="email_open">Email opens</option><option value="email_click">Email clicks</option></select></div>
+          <div class="activity-feed-heading"><div><p class="eyebrow">LIVE PROSPECTING</p><h3>Activity Feed</h3></div><select id="activityTypeFilter" aria-label="Filter activity type"><option value="">All activity</option><option value="contact">Contacts</option><option value="note">Notes</option><option value="quote">Quotes</option><option value="email_sent">Email sent</option><option value="email_open">Email opens</option><option value="email_click">Email clicks</option></select></div>
           <div id="activityFeed" class="activity-feed"><div class="empty">Loading activity…</div></div>
         </section>
 
@@ -98,7 +98,7 @@
 
       <section id="teamView" class="view">
         <button class="back-link" data-back>← Dashboard</button>
-        <div class="team-page-heading"><div><p class="eyebrow">MANAGER CONTROL CENTER</p><h2>Team Activity</h2><p class="status-text">A 30-day snapshot of CRM work and account access.</p></div><button id="addTeamMemberBtn" class="btn btn-primary" type="button">+ Add User</button></div>
+        <div class="team-page-heading"><div><p class="eyebrow">MANAGER CONTROL CENTER</p><h2>Team Activity</h2><p class="status-text">A 30-day snapshot of BM Prospect activity and account access.</p></div><button id="addTeamMemberBtn" class="btn btn-primary" type="button">+ Add User</button></div>
         <div class="stats-grid team-stats"><article class="stat-card"><span>Active Users</span><strong id="teamActiveCount">0</strong></article><article class="stat-card"><span>Open Tasks</span><strong id="teamOpenTasks">0</strong></article><article class="stat-card"><span>Overdue</span><strong id="teamOverdueTasks">0</strong></article><article class="stat-card"><span>Emails Sent · 30d</span><strong id="teamEmailsSent">0</strong></article></div>
         <div id="teamCards" class="team-card-grid"></div>
       </section>
@@ -122,7 +122,7 @@
         <button class="back-link" data-back>← Dashboard</button>
         <div class="contacts-shell">
           <div class="contacts-heading">
-            <div><p class="eyebrow">CRM DATABASE</p><h2>Contacts</h2><p id="contactsCount" class="status-text">0 records</p></div>
+            <div><p class="eyebrow">PROSPECT DATABASE</p><h2>Contacts</h2><p id="contactsCount" class="status-text">0 records</p></div>
             <button id="contactsNewBtn" class="btn btn-primary" type="button">+ Create Contact</button>
           </div>
           <div class="contacts-tabs"><button id="allContactsTab" class="contact-tab active" type="button">All contacts</button><button id="myContactsTab" class="contact-tab" type="button">My contacts</button></div>
@@ -171,7 +171,7 @@
           </div>
 
           <div class="button-row">
-            <button id="saveQuoteBtn" class="btn btn-primary">Save Draft in CRM</button>
+            <button id="saveQuoteBtn" class="btn btn-primary">Save Draft in BM Prospect</button>
             <button id="emailQuoteBtn" class="btn btn-secondary">Email Quote</button>
             <button id="cancelQuoteBtn" class="btn btn-secondary">Cancel</button>
           </div>
@@ -307,7 +307,7 @@
 
   <dialog id="teamMemberDialog">
     <form id="teamMemberForm" method="dialog">
-      <div class="dialog-header"><div><p class="eyebrow">USER MANAGEMENT</p><h2>Add CRM User</h2></div><button type="button" class="icon-btn" data-close-team-member aria-label="Close">×</button></div>
+      <div class="dialog-header"><div><p class="eyebrow">USER MANAGEMENT</p><h2>Add BM Prospect User</h2></div><button type="button" class="icon-btn" data-close-team-member aria-label="Close">×</button></div>
       <label>Full Name<input name="name" required maxlength="100" placeholder="Edwin Smith" /></label>
       <label>Company Email<input name="email" type="email" required placeholder="edwin@bargainmoulding.com" /></label>
       <label>Permission Level<select name="role"><option value="sales_rep">Salesperson</option><option value="manager">Manager</option></select></label>

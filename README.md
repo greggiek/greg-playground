@@ -1,6 +1,6 @@
-# Bargain Prospect CRM
+# BM Prospect
 
-A lightweight, mobile-first prospecting CRM built around one simple lifecycle:
+A lightweight, mobile-first prospecting platform built around one simple lifecycle:
 
 **Prospect → Customer**
 
@@ -17,7 +17,7 @@ A lightweight, mobile-first prospecting CRM built around one simple lifecycle:
 - Today's follow-up list
 - Search prospects
 - Pipeline stages, owners, estimated opportunity value, and dashboard totals
-- Filter prospects by stage and export the CRM as CSV
+- Filter prospects by stage and export BM Prospect data as CSV
 - Edit prospect contact and pipeline details
 - Search live Shopify product variants by title, SKU, or option
 - Enter quantity and calculate line totals / quote total
@@ -53,7 +53,7 @@ The Vercel API routes use Shopify Admin GraphQL API `2026-07` and the client-cre
 SHOPIFY_STORE_DOMAIN=eh1h8t-4b.myshopify.com
 SHOPIFY_CLIENT_ID=from Shopify Dev Dashboard
 SHOPIFY_CLIENT_SECRET=from Shopify Dev Dashboard
-CRM_ACCESS_CODE=create a private code shared only with authorized CRM users
+CRM_ACCESS_CODE=create a private code shared only with authorized BM Prospect users
 ```
 
 Endpoints:
@@ -63,7 +63,7 @@ Endpoints:
 - `GET /api/health` confirms deployment and environment configuration.
 
 Never expose Shopify credentials in browser JavaScript or commit them to GitHub.
-Product, pricing, inventory, and Draft Order endpoints require the private CRM access code.
+Product, pricing, inventory, and Draft Order endpoints require the private BM Prospect access code.
 
 ## Recommended next production step
 
