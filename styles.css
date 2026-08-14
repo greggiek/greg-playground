@@ -1247,3 +1247,96 @@ input:focus, textarea:focus, select:focus {
   .analysis-stat-grid { grid-template-columns: 1fr; }
   .product-interest-options { display: grid; grid-template-columns: 1fr 1fr; }
 }
+
+
+/* Contact analysis modal */
+.contact-analysis-dialog {
+  width: min(720px, calc(100% - 32px));
+  max-height: min(760px, calc(100vh - 48px));
+  padding: 26px;
+  overflow: auto;
+  color: #102a43;
+  background: #fff;
+}
+.contact-analysis-dialog .dialog-header {
+  align-items: center;
+  padding-bottom: 18px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid #dce5ef;
+}
+.contact-analysis-dialog .dialog-header h2 {
+  margin: 2px 0 0;
+  font-size: 26px;
+  line-height: 1.1;
+}
+.contact-analysis-dialog .dialog-header .eyebrow {
+  margin: 0;
+  color: #60758c;
+  letter-spacing: .12em;
+}
+.contact-analysis-dialog .icon-btn {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #eef4fb;
+  color: #12395a;
+}
+.contact-analysis-dialog .analysis-stat-grid {
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.contact-analysis-dialog .analysis-stat-grid article {
+  min-height: 92px;
+  justify-content: center;
+  padding: 16px 18px;
+  border: 1px solid #d8e5f4;
+  background: linear-gradient(145deg, #f4f8fd, #eaf2fb);
+}
+.contact-analysis-dialog .analysis-stat-grid strong {
+  font-size: 26px;
+  line-height: 1;
+}
+.contact-analysis-dialog .analysis-breakdown {
+  margin: 12px 0;
+  padding: 16px 18px;
+  border: 1px solid #e0e7ef;
+  border-radius: 12px;
+  background: #fbfcfe;
+}
+.contact-analysis-dialog .analysis-breakdown h3 {
+  margin: 0 0 8px;
+  color: #12395a;
+  font-size: 15px;
+  letter-spacing: .02em;
+}
+.contact-analysis-dialog .analysis-breakdown div {
+  min-height: 38px;
+  align-items: center;
+  padding: 8px 0;
+}
+.contact-analysis-dialog .analysis-breakdown div:last-child {
+  border-bottom: 0;
+}
+.contact-analysis-dialog > .button-row {
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+.contact-analysis-dialog > .button-row .btn {
+  min-width: 100px;
+}
+
+@media (max-width: 620px) {
+  .contact-analysis-dialog {
+    width: calc(100% - 20px);
+    padding: 20px 16px;
+  }
+  .contact-analysis-dialog .analysis-stat-grid {
+    grid-template-columns: 1fr;
+  }
+  .contact-analysis-dialog .analysis-stat-grid article {
+    min-height: 76px;
+  }
+}
